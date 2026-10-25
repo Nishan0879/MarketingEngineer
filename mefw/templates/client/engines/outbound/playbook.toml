@@ -1,0 +1,41 @@
+# Outbound signal playbook, written and owned by the operator (Section 9.2).
+# Reach companies with a real reason to care now, never a list of strangers.
+# Check the consent and anti-spam rules for each channel and region before the
+# first send, and put what they require in must_include.
+
+[outbound]
+fresh_days = 45            # a trigger's "right now" fades to zero over this many days
+recontact_days = 90        # leave a company alone this long after a message
+min_score = 4.0            # 0 to 10; below this, don't contact
+daily_send_limit = 20      # messages marked sent per day, across the client
+must_include = []          # e.g. an opt-out line and the business's postal address
+
+# Who the client serves best. Leave a list empty to accept any value.
+[outbound.icp]
+employees = []             # [min, max], e.g. [5, 60]
+locations = []             # matched as text, e.g. ["Example City"]
+industries = []
+
+# Column names in the trigger CSV, if they differ from these defaults.
+# [outbound.columns]
+# account = "Company"
+# event = "Event"
+# at = "Date"
+# detail = "Detail"        # the trigger in a few words, e.g. "is hiring four engineers"
+# source = "Source"        # a link to where it was seen
+# employees = "Employees"
+# location = "Location"
+# industry = "Industry"
+# account_ref = "Account ID"
+
+# One section per trigger type. weight: 1 (weak) to 3 (strong reason to care now).
+# Templates may use {company}, {detail} and {fact:key}, nothing else, and must use {detail}.
+# [outbound.events.hiring]
+# label = "Hiring"
+# weight = 3
+# subject = "Room for the people {company} is hiring"
+# body = """Hi,
+#
+# I saw that {company} {detail}. {fact:some_fact}
+#
+# If this isn't relevant, just reply and we won't get in touch again."""

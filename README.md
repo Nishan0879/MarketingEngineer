@@ -15,6 +15,7 @@ sed 's/{client_id}/demo/' examples/coworking/mefw.toml > ../client-demo/profile/
 cp examples/coworking/approved-facts.toml ../client-demo/profile/
 cp examples/coworking/playbook.toml ../client-demo/engines/conversion/
 cp examples/coworking/search-playbook.toml ../client-demo/engines/search/playbook.toml
+cp examples/coworking/outbound-playbook.toml ../client-demo/engines/outbound/playbook.toml
 python -m mefw import-csv --client ../client-demo examples/sample_leads.csv --activities examples/sample_activities.csv
 python -m mefw import-signals --client ../client-demo examples/sample_signals.csv
 python -m mefw audit-cold --client ../client-demo --as-of 2026-10-25T12:00
@@ -28,11 +29,13 @@ python -m mefw drafts make --client ../client-demo --at 2026-10-25T12:00
 python -m mefw search import --client ../client-demo examples/sample_search_queries.csv --period-end 2026-10-24
 python -m mefw search analyze --client ../client-demo --at 2026-10-25T12:00
 python -m mefw search drafts --client ../client-demo --at 2026-10-25T12:00
+python -m mefw outbound import --client ../client-demo examples/sample_outbound_triggers.csv
+python -m mefw outbound drafts --client ../client-demo --at 2026-10-25T12:00
 python -m mefw cockpit --client ../client-demo --as-of 2026-10-25T12:00
 python -m mefw status --client ../client-demo
 ```
 
-What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md), [a content brief](examples/sample-content-brief.md), [a search report](examples/sample-search-report.md), [a search draft](examples/sample-search-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
+What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md), [a content brief](examples/sample-content-brief.md), [a search report](examples/sample-search-report.md), [a search draft](examples/sample-search-draft.md), [an outbound report](examples/sample-outbound-report.md), [an outbound draft](examples/sample-outbound-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
 
 For a real client, edit `profile/mefw.toml` in their workspace: segments, stage names, themes in their customers' words, and the column names of their exports. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
 
@@ -141,6 +144,29 @@ The search visibility engine (Section 9.5) makes the business easy to find and e
 
 The cockpit asks you to review search drafts, publish approved ones, fix listings that disagree with approved facts, and run the AI checks that are due.
 
+## Outbound signals (outbound engine, Level 1)
+
+The outbound signal engine (Section 9.2) reaches companies with a real reason to care now. Its flow is Watch → Enrich → Score → Send → Learn. Everything client-specific is in `engines/outbound/playbook.toml`: the ICP, the trigger types and their weights, the message templates, the limits and the text the channel and region require ([example](examples/coworking/outbound-playbook.toml)).
+
+1. **Watch.** Collect trigger events from wherever the client finds them, such as job boards, local news, a broker or the client's own list. Then run `mefw outbound import triggers.csv`. Each row is a company with an event type, a date, a few words of detail ("is hiring four designers") and a source link. The import keeps company data only: columns that look like personal data are refused, and text is scrubbed of contact details.
+2. **Score.** Each company is scored on ICP fit × trigger weight × how recent the trigger is, from 0 to 10. Some companies are left out, with the reason counted in the report:
+   - outside the ICP
+   - no trigger in `fresh_days`
+   - scoring under `min_score`
+   - suppressed (opted out, an existing customer, or the client asked)
+   - contacted in the last `recontact_days`
+3. **Draft.** `mefw outbound drafts` (agent `outbound-drafter`) drafts a message for the best companies. It also writes `engines/outbound/reports/YYYY-MM-DD.md` ([sample report](examples/sample-outbound-report.md), [sample draft](examples/sample-outbound-draft.md)). A template may use `{company}`, `{detail}` and `{fact:key}` only, so the only personal touch is the real reason to get in touch.
+4. **Approve.** `mefw outbound approve <id>` blocks:
+   - a message that no longer mentions the trigger
+   - stock flattery ("big fan of your work")
+   - unapproved claims and banned language
+   - requests for sensitive data
+   - missing required text
+5. **Send.** You pick the person in your own tool, send it, and run `mefw outbound sent <id>`. No more than `daily_send_limit` can be marked sent per day.
+6. **Learn.** `mefw outbound outcome <id> replied|qualified|meeting|not_interested|opted_out|bounced|no_reply` records what came back. The report counts qualified replies and meetings by trigger type and by score band, never messages sent.
+
+`opted_out`, or `mefw outbound suppress "Company" --reason "..."`, stops all contact at once. Open drafts are withdrawn, and marking anything else sent to that company is refused. The cockpit asks you to review drafts, send approved ones and record what came back.
+
 ## Running on a schedule
 
 Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"`, `"weekly mon 07:00"` or `"monthly 1 08:00"`. Leave a job out to run it only by hand.
@@ -234,6 +260,7 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |
 | `content briefs \| list \| approve \| published \| results` | Content briefs from confirmed insights; approving and recording what's published are the operator's |
 | `search import \| analyze \| drafts \| list \| approve \| published \| ai-record` | Search visibility: search data, weekly report, FAQ drafts, AI assistant checks; approving, publishing and AI checks are the operator's |
+| `outbound import \| drafts \| list \| approve \| reject \| sent \| outcome \| suppress` | Outbound signals: trigger import, scoring and drafts; approving, sending, outcomes and suppression are the operator's |
 | `report make \| approve` | Draft the monthly client report; approve it to get the shareable HTML |
 | `quality` | Per-agent quality numbers; enforces the error budget |
 | `promote <agent>` / `demote <agent>` | Change an agent's level with your sign-off, or after a serious error |
@@ -252,6 +279,7 @@ mefw/core/          runner, kill switch, activity log, ledger, PII guard, worksp
 mefw/adapters/      lead-source interface, lead CSV adapter, signals CSV adapter
 mefw/engines/conversion/   cold-inquiry audit, first-response and re-engagement drafts, the draft queue
 mefw/engines/content/      content briefs, asset checks, publish log, results
+mefw/engines/outbound/     trigger import, scoring, suppression, trigger-tied drafts, what came back
 mefw/engines/search/       search snapshots, opportunity ranking, listings, AI checks, FAQ drafts
 mefw/templates/client/   what `init` copies into a new client workspace
 templates/          the spec's templates (agent spec, experiment brief, ...)

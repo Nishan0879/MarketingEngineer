@@ -21,6 +21,7 @@ from .core.ledger import Ledger, iso, parse_ts
 from .core.runner import Runner
 from .core.workspace import Workspace
 from .engines.content import briefs as content
+from .engines.outbound import drafts as outbound, signals as outbound_signals
 from .engines.search import analysis as search_analysis, data as search_data, pages as search_pages
 from .engines.conversion import cold_audit, first_response, queue, reengage
 
@@ -417,6 +418,100 @@ def cmd_search(args) -> int:
                    {"summary": f"{meta['id']} live at {args.url}"})
         print(f"Recorded {meta['id']} at {args.url}. The weekly report will track its queries.")
     return 0
+
+
+def cmd_outbound(args) -> int:
+    ws = _ws(args)
+    at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
+    log = ActivityLog(ws.log_path, ws.client_id)
+
+    if args.action == "import":
+        rep = outbound_signals.import_triggers(ws, Path(args.file), at)
+        log.append(OPERATOR, "outbound_import", "ok", {"file": Path(args.file).name}, rep)
+        print(f"Imported {rep['new']} new trigger(s); skipped {rep['skipped']} already seen or incomplete.")
+        if rep["unknown_events"]:
+            print("Not in [outbound.events], so left out: " +
+                  ", ".join(f"{k} ({v})" for k, v in rep["unknown_events"].items()))
+        return 0
+
+    if args.action == "drafts":
+        runner = Runner(ws)
+        made, notes, refused = [], [], None
+        try:
+            ranked, _ = outbound.candidates(ws, at)
+            for a in ranked[: args.max]:
+                try:
+                    res = runner.run(outbound.AGENT, "outbound_draft", "draft",
+                                     f"outbound:{a['account_key']}:{a['trigger']['id']}",
+                                     lambda a=a: _outbound_job(ws, a, at), {"account": a["account_key"]})
+                except GuardrailError as e:
+                    refused = str(e)
+                    break
+                if res.status == "ok" and res.output.get("id"):
+                    made.append(res.output["id"])
+                elif res.output.get("skipped"):
+                    notes.append(res.output["skipped"])
+            if refused is None:
+                key = f"outbound-report:{at.date()}:{len(outbound_signals.triggers(ws))}:{len(made)}"
+                res = runner.run(outbound.AGENT, "outbound_report", "observe", key,
+                                 lambda: _outbound_report(ws, at), {"at": iso(at)})
+        finally:
+            runner.close()
+        print(f"Wrote {len(made)} outbound draft(s)" + (": " + ", ".join(made) if made else "."))
+        for n in dict.fromkeys(notes):
+            print(f"  note: {n}")
+        if refused:
+            print(f"Stopped: {refused}", file=sys.stderr)
+            return 2
+        if res.output.get("report"):
+            print(f"Report: {ws.root / res.output['report']}")
+        return 0
+
+    if args.action == "list":
+        for _, m, _ in outbound.all_drafts(ws):
+            got = ", ".join(o["outcome"] for o in m.get("outcomes", []))
+            print(f"{m['id']}  {m['status']:<9} score={m['score']} {m['event']}" + (f"  back: {got}" if got else ""))
+        return 0
+
+    log.verify()
+    if args.action == "approve":
+        meta = outbound.approve(ws, args.id, args.by, at)
+        msg = f"Approved {meta['id']}" + (" (edited)" if meta["edited"] else "")
+        print(f"{msg}. Pick the person in your own tool, send it, then `mefw outbound sent {meta['id']}`.")
+    elif args.action == "reject":
+        meta = outbound.reject(ws, args.id, args.reason, args.by, at)
+        msg = f"Rejected {meta['id']}: {meta['reason']}"
+        print(msg + ".")
+    elif args.action == "sent":
+        meta = outbound.mark_sent(ws, args.id, args.by, at)
+        msg = f"Sent {meta['id']}"
+        print(f"{msg}. Record what comes back with `mefw outbound outcome {meta['id']} <outcome>`.")
+    elif args.action == "outcome":
+        meta = outbound.record_outcome(ws, args.id, args.outcome, args.by, at)
+        msg = f"{meta['id']}: {args.outcome}"
+        print(msg + (f". {meta['account']} is suppressed; nobody will draft to them again." if
+                     args.outcome == "opted_out" else "."))
+    else:
+        withdrawn = outbound.stop(ws, args.company, args.reason, args.by, at)
+        msg = f"Suppressed {args.company}: {args.reason}"
+        print(msg + (f". Withdrew {', '.join(withdrawn)}." if withdrawn else "."))
+    log.append(args.by, f"outbound_{args.action}", "ok", {"id": getattr(args, "id", None) or args.company},
+               {"summary": msg})
+    return 0
+
+
+def _outbound_job(ws: Workspace, a: dict, at: datetime) -> dict:
+    meta = outbound.make_draft(ws, a, at)
+    if "skipped" in meta:
+        return {"summary": meta["skipped"], "skipped": meta["skipped"]}
+    blocked = f"; {len(meta['blocking_issues'])} blocking issue(s)" if meta["blocking_issues"] else ""
+    return {"summary": f"Outbound draft {meta['id']} ({meta['event']}, score {meta['score']}){blocked}",
+            "id": meta["id"]}
+
+
+def _outbound_report(ws: Workspace, at: datetime) -> dict:
+    rel, info = outbound.write_report(ws, at)
+    return {"summary": f"{info['ranked']} companies worth contacting", "report": rel}
 
 
 def _search_job(ws: Workspace, ledger: Ledger, c: dict, at: datetime) -> dict:
@@ -896,6 +991,37 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--by", default=OPERATOR)
     c.add_argument("--at")
     sp.set_defaults(fn=cmd_search)
+
+    sp = sub.add_parser("outbound", help="outbound signals: import triggers, score, draft, send by hand, learn")
+    osub = sp.add_subparsers(dest="action", required=True)
+    c = with_client(osub.add_parser("import", help="import a CSV of company trigger events"))
+    c.add_argument("file")
+    c.add_argument("--at")
+    c = with_client(osub.add_parser("drafts", help="score companies, draft messages, write the report (Level 1)"))
+    c.add_argument("--max", type=int, default=5)
+    c.add_argument("--at")
+    with_client(osub.add_parser("list", help="outbound drafts and what came back"))
+    for name, help_ in (("approve", "check a draft and approve it"), ("sent", "record that you sent it")):
+        c = with_client(osub.add_parser(name, help=help_))
+        c.add_argument("id")
+        c.add_argument("--by", default=OPERATOR)
+        c.add_argument("--at")
+    c = with_client(osub.add_parser("reject", help="reject a draft, with the reason"))
+    c.add_argument("id")
+    c.add_argument("--reason", required=True)
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(osub.add_parser("outcome", help="record what came back"))
+    c.add_argument("id")
+    c.add_argument("outcome", choices=list(outbound.OUTCOMES))
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(osub.add_parser("suppress", help="never contact this company (opted out, customer, client asked)"))
+    c.add_argument("company")
+    c.add_argument("--reason", required=True)
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    sp.set_defaults(fn=cmd_outbound)
 
     sp = sub.add_parser("drafts", help="first-response and re-engagement drafts: make, review, approve, reject, "
                                        "mark sent")

@@ -94,6 +94,18 @@ SEARCH_QUERIES = [  # query, clicks, impressions, CTR, position
 ]
 
 
+OUTBOUND_TRIGGERS = [  # companies with a reason to need space now; company data only
+    ('Company', 'Event', 'Date', 'Detail', 'Source', 'Employees', 'Location', 'Industry', 'Account ID'),
+    ('Northwind Design', 'hiring', '2026-10-20', 'is hiring four designers in Example City', 'https://jobs.example.test/northwind', '12', 'Example City', 'Design', ''),
+    ('Bluebird Analytics', 'lease_ending', '2026-10-02', 'has a lease ending in January', "client's broker", '25', 'Example City', 'Software', 'ACC-311'),
+    ('Tiny Tax Co', 'new_business', '2026-10-18', 'just opened its doors', 'https://news.example.test/tiny-tax', '2', 'Example City', 'Accounting', ''),
+    ('Granite Logistics', 'hiring', '2026-10-22', 'is hiring forty warehouse staff', 'https://jobs.example.test/granite', '400', 'Example City', 'Logistics', ''),
+    ('Fernwood Studio', 'moving', '2026-08-01', 'is moving out of its old building', 'https://news.example.test/fernwood', '8', 'Example City', 'Media', ''),
+    ('Harbor Health', 'funding', '2026-10-15', 'raised a seed round to grow the team', 'https://news.example.test/harbor', '15', 'Other Town', 'Health', ''),
+    ('Quill Legal', 'moving', '2026-10-12', 'is moving its team closer to the centre', 'https://news.example.test/quill', '9', 'Example City', 'Legal', ''),
+]
+
+
 def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
     random.seed(seed)
     leads, acts, signals = [], [], []
@@ -240,6 +252,8 @@ def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
         w = csv.writer(f)
         w.writerow(["Top queries", "Clicks", "Impressions", "CTR", "Position"])
         w.writerows(SEARCH_QUERIES)
+    with open(out_dir / "sample_outbound_triggers.csv", "w", newline="") as f:
+        csv.writer(f).writerows(OUTBOUND_TRIGGERS)
     print(f"Wrote {len(leads)} leads, {len(acts)} activities and {len(signals)} signals to {out_dir}")
 
 

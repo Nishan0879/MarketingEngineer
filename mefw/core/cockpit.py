@@ -15,9 +15,10 @@ from . import customer_truth, experiments, metrics, quality, scheduler
 from .activity_log import ActivityLog
 from .control import Control
 from .evidence import refs_md
-from .ledger import Ledger, LeadState, iso
+from .ledger import Ledger, LeadState, iso, parse_ts
 from .workspace import Workspace
 from ..engines.content import briefs as content
+from ..engines.outbound import drafts as outbound
 from ..engines.search import analysis as search_analysis, data as search_data, pages as search_pages
 from ..engines.conversion import cold_audit, first_response, queue, reengage
 
@@ -219,6 +220,18 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
         if due:
             decisions.append(f"Run {len(due)} AI assistant check(s) and record them with `mefw search ai-record` "
                              "(the list is in the latest search report)")
+    out_pending = [m["id"] for _, m, _ in outbound.all_drafts(ws) if m["status"] == "pending"]
+    if out_pending:
+        decisions.append(f"Review {len(out_pending)} outbound draft(s): `mefw outbound list`, then approve or reject")
+    out_approved = [m["id"] for _, m, _ in outbound.all_drafts(ws) if m["status"] == "approved"]
+    if out_approved:
+        decisions.append(f"Send {len(out_approved)} approved outbound message(s) from your own tool, then "
+                         "`mefw outbound sent <id>`")
+    awaiting = [m["id"] for _, m, _ in outbound.all_drafts(ws) if m["status"] == "sent" and not m.get("outcomes")
+                and parse_ts(m["sent_at"]) < end - timedelta(days=7)]
+    if awaiting:
+        decisions.append(f"Record what came back for {len(awaiting)} outbound message(s) sent over a week ago "
+                         "(`mefw outbound outcome <id> ...`; no_reply and bounced count too)")
     for agent in (first_response.AGENT, reengage.AGENT):
         record = queue.track_record(ws, agent)
         if record["meets_threshold"]:

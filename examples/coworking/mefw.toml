@@ -100,6 +100,12 @@ level = 1                     # drafts FAQ and page changes; a human approves an
 spec = "agents/search-page-drafter.md"
 max_actions_per_day = 10
 
+[agents.outbound-drafter]
+engine = "outbound"
+level = 1                     # scores and drafts; a human sends from their own tool
+spec = "agents/outbound-drafter.md"
+max_actions_per_day = 15
+
 [agents.first-response-drafter]
 engine = "conversion"
 level = 1                     # drafts only; a human approves and sends
@@ -126,6 +132,7 @@ customer-truth-analyst = "daily 06:30"
 content-brief-writer   = "weekly mon 06:40"
 search-analyst         = "weekly mon 06:50"
 search-page-drafter    = "weekly mon 06:55"
+outbound-drafter       = "weekly mon 06:57"
 cold-inquiry-auditor   = "weekly mon 06:00"
 re-engagement-drafter  = "weekly mon 06:15"
 experiment-tracker     = "weekly mon 06:30"
