@@ -14,7 +14,7 @@ from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
 from .adapters.signals_csv import import_signals
 from .core.activity_log import ActivityLog
-from .core import cockpit, customer_truth, experiments, truth_report
+from .core import cockpit, customer_truth, experiments, scheduler, truth_report
 from .core.control import Control
 from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
@@ -441,6 +441,38 @@ def cmd_resume(args) -> int:
     return 0
 
 
+def cmd_run_due(args) -> int:
+    ws = _ws(args)
+    ActivityLog(ws.log_path, ws.client_id).verify()
+    now = parse_ts(args.at) if args.at else datetime.now(timezone.utc)
+    results = scheduler.run_due(ws, now)
+    if not results:
+        print("Nothing due.")
+    for r in results:
+        print(f"{r['job']}: {r['result']}" + (f" — {r['summary'].splitlines()[-1]}" if r.get("summary") else ""))
+    return 1 if any(r["result"] == "failed" for r in results) else 0
+
+
+def cmd_schedule(args) -> int:
+    ws = _ws(args)
+    now = parse_ts(args.at) if args.at else datetime.now(timezone.utc)
+    rows = scheduler.overview(ws, now)
+    if not rows:
+        print("No [schedule] in profile/mefw.toml; jobs only run when you run them.")
+        return 0
+    tz = scheduler.client_tz(ws)
+
+    def local(ts):
+        return parse_ts(ts).astimezone(tz).strftime("%a %Y-%m-%d %H:%M") if ts else "never"
+
+    print(f"Times in {getattr(tz, 'key', 'UTC')}.")
+    for r in rows:
+        flag = "  BEHIND" if r["behind"] else ""
+        last = f"{local(r['last_run'])} ({r['last_result']})" if r["last_run"] else "never"
+        print(f"{r['job']:<24} {r['schedule']:<18} last: {last:<32} next: {local(r['next'])}{flag}")
+    return 0
+
+
 def cmd_status(args) -> int:
     ws = _ws(args)
     ctl = Control(ws.control_path).load()
@@ -606,6 +638,14 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--reason", default="operator request", required=(name == "pause"))
         sp.add_argument("--by", default=OPERATOR)
         sp.set_defaults(fn=fn)
+
+    sp = with_client(sub.add_parser("run-due", help="run every scheduled job that is due (call from cron)"))
+    sp.add_argument("--at", help="pretend it is this time (for testing)")
+    sp.set_defaults(fn=cmd_run_due)
+
+    sp = with_client(sub.add_parser("schedule", help="each scheduled job's last and next run"))
+    sp.add_argument("--at")
+    sp.set_defaults(fn=cmd_schedule)
 
     sp = with_client(sub.add_parser("status", help="kill switch, agents, ledger and log health"))
     sp.set_defaults(fn=cmd_status)

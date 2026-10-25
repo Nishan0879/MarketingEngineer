@@ -11,7 +11,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from . import customer_truth, experiments, metrics
+from . import customer_truth, experiments, metrics, scheduler
 from .activity_log import ActivityLog
 from .control import Control
 from .evidence import refs_md
@@ -182,6 +182,16 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
             decisions.append(f"`{agent}` has {record['streak']} unedited approvals in a row over "
                              f"{record['streak_days']} days, the Section 11.2 bar for Level 2. Promote only with a "
                              "written playbook of what it may send, and note it in the agent's change log.")
+    try:
+        jobs = scheduler.overview(ws, end)
+    except ValueError as e:
+        jobs = []
+        decisions.append(f"Fix the [schedule] table in profile/mefw.toml: {e}")
+    for job in jobs:
+        if job["behind"]:
+            since = f"since {job['last_ok'][:16].replace('T', ' ')} UTC" if job["last_ok"] else "at all"
+            decisions.append(f"Scheduled job `{job['job']}` ({job['schedule']}) hasn't run {since}. Check that "
+                             "`mefw run-due` is still being called, then `mefw schedule`.")
     ctl = Control(ws.control_path).load()
     if ctl.get("client"):
         decisions.append(f"The whole client is paused ({ctl['client'].get('reason')}). Resume when ready.")

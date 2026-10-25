@@ -10,7 +10,7 @@ conversion
 0 — starting level
 
 ## Trigger / schedule
-On demand during onboarding week 1 (audit), then weekly before the cockpit memo.
+On demand during onboarding week 1 (audit), then weekly before the cockpit memo. Set in `[schedule]` of `profile/mefw.toml`; `mefw run-due` runs it when due.
 
 ## Inputs
 - The lead/outcome ledger (`data/ledger.db`), filled from the client's lead-tracking tool through an adapter

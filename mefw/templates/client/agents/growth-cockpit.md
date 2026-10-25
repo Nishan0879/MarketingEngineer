@@ -10,7 +10,7 @@ core
 0 — starting level
 
 ## Trigger / schedule
-Weekly, after the week's imports, `mefw truth` and `mefw experiment measure`.
+Weekly, after the week's imports, `mefw truth` and `mefw experiment measure`. Set in `[schedule]` of `profile/mefw.toml`; `mefw run-due` runs it when due.
 
 ## Inputs
 - The lead/outcome ledger

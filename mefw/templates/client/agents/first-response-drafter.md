@@ -10,7 +10,7 @@ conversion
 1 — starting level (drafts only; a human approves and sends)
 
 ## Trigger / schedule
-Several times a day, or on demand with `mefw drafts make`. Speed to first response is what this agent exists to improve, so run it often.
+Several times a day, or on demand with `mefw drafts make`. Speed to first response is what this agent exists to improve, so run it often. Set in `[schedule]` of `profile/mefw.toml`; `mefw run-due` runs it when due.
 
 ## Inputs
 - The lead/outcome ledger, and the messages (signals) linked to each lead

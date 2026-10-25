@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — 2026-10-25
+- Scheduled runs (Section 19, "Scheduled workflows"; answers the Section 22 question of where agents run day to day). A `[schedule]` table in the profile sets each job's schedule in the client's timezone (`every 2h`, `daily 07:00`, `weekly mon 07:00`).
+- `mefw run-due`, called every 15 minutes by cron or a systemd timer, runs each job whose latest slot hasn't run, in a fixed order, through the same commands and guardrails as running them by hand. Missed slots aren't replayed. A failed slot is retried once. A lock prevents overlapping runs. Every attempt is logged.
+- Scheduled imports from `[schedule.inbox]` (default `inbox/`, gitignored), skipped when the exports haven't changed.
+- `mefw schedule` shows last and next runs. The cockpit flags jobs that have fallen two runs behind and a `[schedule]` table it can't read.
+
 ## 0.5.0 — 2026-10-25
 - New Level 1 agent `first-response-drafter` (Section 9.3): drafts the first reply to every open inquiry nobody has answered, longest waiting first, until the lead goes cold.
 - It answers the questions a lead asked only from approved facts tagged with that topic. Topics and their keywords live in `[first_response.topics]` of the playbook; facts get an optional `topics` list.
