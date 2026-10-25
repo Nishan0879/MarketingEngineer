@@ -1,0 +1,27 @@
+[preset]
+label = "Pipedrive (deals export)"
+export = "Deals > List view > choose columns (ID, Deal created, Stage, Status, Won time / Lost time, Lost reason, Value, Source) > ... > Export filter results > CSV."
+notes = "Pipedrive prefixes columns with the entity, e.g. \"Deal - Stage\"; both forms are matched. Stage names are your own pipeline's."
+
+[columns]
+ref               = ["Deal - ID", "ID", "Deal ID"]
+inquired_at       = ["Deal - Deal created", "Deal created", "Deal - Add time", "Add time"]
+channel           = ["Deal - Source channel", "Source channel", "Deal - Source origin", "Source origin", "Deal - Source"]
+segment           = ["Deal - Pipeline", "Pipeline"]
+value             = ["Deal - Value", "Value"]
+last_outbound_at  = ["Deal - Last activity date", "Last activity date"]
+outbound_count    = ["Deal - Total activities", "Total activities", "Deal - Done activities", "Done activities"]
+stage             = ["Deal - Stage", "Stage"]
+outcome           = ["Deal - Status", "Status"]
+outcome_at        = ["Deal - Close time", "Close time", "Deal - Won time", "Won time", "Deal - Lost time", "Lost time"]
+lost_reason       = ["Deal - Lost reason", "Lost reason"]
+campaign          = ["Deal - UTM Campaign", "UTM Campaign", "Deal - Campaign", "Campaign"]
+
+[stages]
+inquire = ["Lead In", "Contact Made"]
+qualify = ["Qualified", "Needs Defined"]
+meet    = ["Demo Scheduled", "Proposal Made", "Negotiations Started", "Tour Scheduled", "Viewing"]
+
+[outcome_values]
+won  = ["won"]
+lost = ["lost"]

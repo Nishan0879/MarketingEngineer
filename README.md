@@ -2,7 +2,7 @@
 
 A reusable system for running marketing for lead-based businesses with AI agents, overseen by one operator. The operating manual is [MarketingEngineerFW.md](MarketingEngineerFW.md); this repository is the code that enforces it.
 
-**Built so far (v0.8):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, the conversion engine's first job, a cold-inquiry audit, a scheduler that runs it all on its own, a monthly report for the client, and per-agent quality numbers with promotion and demotion checked in code. Client-agnostic: a new client is a new workspace plus a config file.
+**Built so far (v0.13):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, a scheduler, a monthly client report, per-agent quality numbers with promotion and demotion checked in code, and all five engines: conversion (cold-inquiry audit, first replies, re-engagement), content, search visibility, outbound signals and creative testing. Onboarding presets map exports from a lead sheet, HubSpot, Pipedrive, Nexudus or OfficeRnD. Client-agnostic: a new client is a new workspace plus a config file.
 
 ## Quick start
 
@@ -39,7 +39,16 @@ python -m mefw status --client ../client-demo
 
 What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md), [a content brief](examples/sample-content-brief.md), [a search report](examples/sample-search-report.md), [a search draft](examples/sample-search-draft.md), [an outbound report](examples/sample-outbound-report.md), [an outbound draft](examples/sample-outbound-draft.md), [a creative test plan](examples/sample-creative-plan.md), [creative test results](examples/sample-creative-results.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
 
-For a real client, edit `profile/mefw.toml` in their workspace: segments, stage names, themes in their customers' words, and the column names of their exports. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
+For a real client, follow [docs/first-client.md](docs/first-client.md): agree on the data, set up the profile and approved facts, map their export, import, audit, and switch on one engine. Edit `profile/mefw.toml` in their workspace for segments, stage names and themes in their customers' words. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
+
+## Onboarding a client's lead export
+
+`mefw onboard` maps a real export without editing column names by hand. Presets cover the lead tools a coworking or office-leasing business most often uses: a Google Sheets or Excel lead sheet, HubSpot deals, Pipedrive deals, Nexudus opportunities and OfficeRnD leads (`mefw onboard presets` lists them, with how to export from each). Export layouts differ by account and version, so a preset lists the names each field usually goes by, and the real file decides.
+
+- `mefw onboard check FILE [--preset P]` picks the closest preset if you don't name one. It shows the column each field comes from, missing fields, columns that look like personal data (never imported), unreadable dates, blank or repeated IDs, and every stage value with where it lands in the funnel. It exits 1 if the file can't be imported yet.
+- `mefw onboard apply FILE --preset P [--stage "NAME=STAGE"]` writes the column mapping, stage-date columns and won/lost values into `profile/mefw.toml`, and adds the preset's stage names to `[funnel.stages]` without touching yours. It keeps the old profile as `profile/mefw.toml.<time>.bak` and puts it back if the new mapping can't read every row.
+
+A client with no lead tool can start from [examples/onboarding/lead-sheet-template.csv](examples/onboarding/lead-sheet-template.csv), which the spreadsheet preset reads in full. A lost value in the stage column (HubSpot's "Closed Lost") is read as an outcome, not an unmapped stage.
 
 ## Segments
 
@@ -280,6 +289,7 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | Command | Does |
 |---|---|
 | `init DIR --client-id ID` | Create a client workspace from the template |
+| `onboard presets \| check FILE \| apply FILE --preset P` | Map a client's lead export with a preset for their lead tool |
 | `import-csv FILE [--activities FILE]` | Import a lead export; re-importing the same file adds nothing |
 | `import-signals FILE [--kind K]` | Import notes, messages or reviews; contact details are scrubbed |
 | `truth [--as-of]` | Update customer truth and insight records (Level 0) |
@@ -309,7 +319,8 @@ All take `--client DIR` (or `$MEFW_CLIENT`).
 ```
 mefw/core/          runner, kill switch, activity log, ledger, PII guard, workspace,
                     evidence rules, metrics, customer truth, experiments, cockpit
-mefw/adapters/      lead-source interface, lead CSV adapter, signals CSV adapter
+mefw/adapters/      lead-source interface, lead CSV adapter, signals CSV adapter, onboarding
+mefw/adapters/presets/     export presets: spreadsheet, HubSpot, Pipedrive, Nexudus, OfficeRnD
 mefw/engines/conversion/   cold-inquiry audit, first-response and re-engagement drafts, the draft queue
 mefw/engines/content/      content briefs, asset checks, publish log, results
 mefw/engines/creative/     test plans, variant checks, ad results, cost per meeting, winners
@@ -317,7 +328,8 @@ mefw/engines/outbound/     trigger import, scoring, suppression, trigger-tied dr
 mefw/engines/search/       search snapshots, opportunity ranking, listings, AI checks, FAQ drafts
 mefw/templates/client/   what `init` copies into a new client workspace
 templates/          the spec's templates (agent spec, experiment brief, ...)
-examples/           sample data generator, coworking profile, sample outputs
+examples/           sample data generator, coworking profile, lead sheet template, sample outputs
+docs/               first-client.md: running a first real client end to end
 tests/              python -m unittest discover -s tests
 ```
 

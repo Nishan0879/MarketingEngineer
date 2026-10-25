@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.13.0 — 2026-10-25
+- Client onboarding. `mefw onboard` maps a real lead export with a preset for the client's lead tool.
+- Presets in `mefw/adapters/presets/` for a Google Sheets or Excel lead sheet, HubSpot deals, Pipedrive deals, Nexudus opportunities and OfficeRnD leads. Each lists the header names each field usually goes by, the tool's default stage names and its won/lost values. Matching ignores case, spaces and punctuation, and no alias may name a personal-data column.
+- `mefw onboard check` picks the closest preset and reports:
+  - the column each field comes from, and missing fields
+  - columns that look like personal data, left out
+  - unreadable dates, blank or repeated IDs
+  - each stage and outcome value and where it lands
+- `mefw onboard apply` writes the mapping into `profile/mefw.toml`, adds stage names without touching the operator's, takes `--stage "NAME=STAGE"` for the client's own, keeps a backup, and restores it if the new mapping can't read the file. It's recorded in the activity log.
+- `examples/onboarding/lead-sheet-template.csv` for a client with no lead tool.
+- `docs/first-client.md`: running a first real client end to end, from the data agreement to the first monthly report.
+- The CSV adapter reads a lost value in the stage column (HubSpot's "Closed Lost") as an outcome, so it's no longer reported as an unmapped stage.
+
 ## 0.12.0 — 2026-10-25
 - Creative testing engine (Section 9.4), set up in `engines/creative/playbook.toml`. With it, all five engines in Section 9 are built.
 - New Level 1 agent `creative-tester` and `mefw creative plan`. It plans a test for each insight that has shown it resonates (the content engine's evidence bar), one at a time per insight. A plan includes:

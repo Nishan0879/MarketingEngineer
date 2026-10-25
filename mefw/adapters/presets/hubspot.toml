@@ -1,0 +1,27 @@
+[preset]
+label = "HubSpot (deals export)"
+export = "CRM > Deals > (your pipeline view) > Export view, as CSV, including all properties you want. Include the Record ID, Create Date, Deal Stage, Close Date and Closed Lost Reason columns."
+notes = "Default HubSpot sales pipeline stage names. Custom pipelines add their own stage names; `mefw onboard check` lists any it can't place."
+
+[columns]
+ref               = ["Record ID", "Deal ID", "Record ID - Deal"]
+inquired_at       = ["Create Date", "Created Date", "Create date"]
+channel           = ["Original Source Type", "Original Traffic Source", "Original Source", "Source"]
+segment           = ["Pipeline", "Deal Type"]
+value             = ["Amount", "Amount in company currency"]
+last_outbound_at  = ["Last Contacted", "Last Activity Date"]
+outbound_count    = ["Number of Sales Activities", "Number of times contacted"]
+stage             = ["Deal Stage", "Stage"]
+outcome           = ["Deal Stage", "Stage"]
+outcome_at        = ["Close Date", "Closed Date"]
+lost_reason       = ["Closed Lost Reason", "Lost Reason"]
+campaign          = ["Original Source Drill-Down 2", "Original Traffic Source Drill-Down 2", "UTM Campaign", "Campaign"]
+
+[stages]
+qualify = ["Qualified To Buy", "Qualified to buy"]
+meet    = ["Appointment Scheduled", "Presentation Scheduled", "Decision Maker Bought-In", "Contract Sent"]
+commit  = ["Closed Won"]
+
+[outcome_values]
+won  = ["Closed Won"]
+lost = ["Closed Lost"]
