@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.11.0 — 2026-10-25
+- Outbound signal engine (Section 9.2): Watch → Enrich → Score → Send → Learn, set up in `engines/outbound/playbook.toml`.
+- `mefw outbound import` reads company trigger events (hiring, moving, a lease ending, funding, a new business, and others). It keeps company data only: personal-data columns are refused and text is scrubbed. Events are append-only and never imported twice.
+- Scoring is ICP fit × trigger weight × recency, from 0 to 10. It drops poor fits, stale triggers, low scores, suppressed companies and companies contacted within `recontact_days`, and counts the reason for each.
+- New Level 1 agent `outbound-drafter` and `mefw outbound drafts`.
+  - It drafts one message per company from the trigger type's template. Templates may use only `{company}`, `{detail}` and `{fact:key}`.
+  - It writes a report of who's worth contacting and what came back.
+- Approval blocks:
+  - messages that drop the trigger
+  - fake personalization
+  - unapproved claims and banned language
+  - sensitive-data requests
+  - missing required text
+- The operator sends from their own tool, capped at `daily_send_limit` a day, and records outcomes.
+- Opting out or `mefw outbound suppress` stops contact at once and withdraws open drafts.
+- Learning is by qualified replies and meetings per trigger type and score band, not messages sent.
+- The cockpit lists outbound drafts to review and send, and messages with no outcome after a week. The scheduler runs the drafter weekly.
+- Examples: a coworking outbound playbook, sample triggers, a sample report and a sample draft.
+
 ## 0.10.0 — 2026-10-25
 - Search visibility engine (Section 9.5), set up in `engines/search/playbook.toml`.
 - `mefw search import` keeps each Search Console export as a snapshot for its period. Snapshots are never overwritten, and queries are scrubbed of contact details.

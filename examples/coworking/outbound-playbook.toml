@@ -1,0 +1,74 @@
+# Example outbound playbook for a fictional coworking space that also leases
+# offices. Copy to engines/outbound/playbook.toml and make it the client's.
+
+[outbound]
+fresh_days = 45
+recontact_days = 90
+min_score = 4.0
+daily_send_limit = 15
+must_include = ["just reply and we won't get in touch again", "Example Coworking, 1 Example Street, Example City"]
+
+[outbound.icp]
+employees = [3, 60]
+locations = ["Example City"]
+industries = []
+
+[outbound.events.hiring]
+label = "Hiring"
+weight = 3
+subject = "Room for the people {company} is hiring"
+body = """Hi,
+
+I saw that {company} {detail}. {fact:office_flex} {fact:tour_booking}
+
+If the timing's wrong, just reply and we won't get in touch again.
+
+Example Coworking, 1 Example Street, Example City"""
+
+[outbound.events.lease_ending]
+label = "Lease ending"
+weight = 3
+subject = "Before {company}'s lease comes up"
+body = """Hi,
+
+I understand {company} {detail}. {fact:office_flex} {fact:tour_booking}
+
+If you're sorted, just reply and we won't get in touch again.
+
+Example Coworking, 1 Example Street, Example City"""
+
+[outbound.events.moving]
+label = "Moving"
+weight = 3
+subject = "Somewhere for {company} to land"
+body = """Hi,
+
+I saw that {company} {detail}. {fact:office_parking} {fact:tour_booking}
+
+If it's not useful, just reply and we won't get in touch again.
+
+Example Coworking, 1 Example Street, Example City"""
+
+[outbound.events.funding]
+label = "Funding"
+weight = 2
+subject = "Space for {company}'s next stage"
+body = """Hi,
+
+Congratulations: I read that {company} {detail}. {fact:office_flex}
+
+If now isn't the time, just reply and we won't get in touch again.
+
+Example Coworking, 1 Example Street, Example City"""
+
+[outbound.events.new_business]
+label = "New business"
+weight = 1
+subject = "A desk for {company}"
+body = """Hi,
+
+I saw that {company} {detail}. {fact:month_to_month} {fact:day_pass}
+
+If it's not for you, just reply and we won't get in touch again.
+
+Example Coworking, 1 Example Street, Example City"""
