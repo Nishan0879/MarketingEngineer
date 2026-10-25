@@ -62,6 +62,7 @@ class Config:
     signals_csv: dict = field(default_factory=dict)
     north_star: dict = field(default_factory=dict)
     schedule: dict = field(default_factory=dict)
+    client_name: str = ""
 
 
 class Workspace:
@@ -177,6 +178,7 @@ def load_config(path: Path) -> Config:
         signals_csv=raw.get("adapters", {}).get("signals_csv", {}),
         north_star=raw.get("north_star", {}),
         schedule=raw.get("schedule", {}),
+        client_name=client.get("name", ""),
     )
 
 

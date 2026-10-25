@@ -2,7 +2,7 @@
 
 A reusable system for running marketing for lead-based businesses with AI agents, overseen by one operator. The operating manual is [MarketingEngineerFW.md](MarketingEngineerFW.md); this repository is the code that enforces it.
 
-**Built so far (v0.6):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, the conversion engine's first job, a cold-inquiry audit, and a scheduler that runs it all on its own. Client-agnostic: a new client is a new workspace plus a config file.
+**Built so far (v0.7):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, the conversion engine's first job, a cold-inquiry audit, a scheduler that runs it all on its own, and a monthly report for the client. Client-agnostic: a new client is a new workspace plus a config file.
 
 ## Quick start
 
@@ -28,7 +28,7 @@ python -m mefw cockpit --client ../client-demo --as-of 2026-10-25T12:00
 python -m mefw status --client ../client-demo
 ```
 
-What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
+What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
 
 For a real client, edit `profile/mefw.toml` in their workspace: segments, stage names, themes in their customers' words, and the column names of their exports. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
 
@@ -107,10 +107,10 @@ Nothing is sent by the system:
 
 ## Running on a schedule
 
-Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"` or `"weekly mon 07:00"`. Leave a job out to run it only by hand.
+Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"`, `"weekly mon 07:00"` or `"monthly 1 08:00"`. Leave a job out to run it only by hand.
 
 `mefw run-due` runs every job whose latest slot hasn't run yet:
-- **Order.** Jobs run in a fixed order: import, customer truth, cold audit, first responses, re-engagement, experiments, cockpit. Imports land before the agents that read them.
+- **Order.** Jobs run in a fixed order: import, customer truth, cold audit, first responses, re-engagement, experiments, cockpit, client report. Imports land before the agents that read them.
 - **Same guardrails.** Each job is the same command you'd run by hand, so the kill switch, levels, caps and dedupe all still apply. A paused agent shows as `blocked`.
 - **Missed slots.** These aren't replayed; only the latest slot runs.
 - **Failures.** A failed slot is retried once on the next call, then left for you. Every attempt is in the activity log as a `scheduler` entry.
@@ -133,6 +133,22 @@ Persistent=true
 ```
 
 On Windows, the scheduler needs `fcntl`, like the rest of the core, so run it under WSL with the cron line above. Exports stay on the machine that runs it. Nothing is sent from here, so an unattended run can only import, analyze and draft.
+
+## Monthly client report
+
+`mefw report make` (agent `client-reporter`, Level 0) drafts the report the client reads, for the last complete month by default (`--month 2026-10` for another). It's separate from the cockpit and has no agent errors, lead IDs or internal decisions.
+
+What it covers:
+- **Results:** the north star against last month.
+- **How inquiries were handled:** for each segment, time to first reply, share answered within an hour and share that went on to a meeting. Each rate shows its sample size, and small samples are marked.
+- **What customers are telling us:** only insight records you've set to `confirmed` or `acted on`, with the customer's own words.
+- **What we tested:** experiments closed that month and the ones still running.
+- **Follow-up:** messages sent, and quiet leads that came back.
+- **What's next,** and **what would help from the client**, such as leads with no won/lost result.
+
+The draft goes to `reports/YYYY-MM-client-report.md`. Its front matter lists anything left out for you to decide on. Edit it, then run `mefw report approve`. Approval refuses a report that still contains placeholders, draft wording, source references, agent names or contact details. It writes `reports/YYYY-MM-client-report.html`, a clean page you can send or print to PDF. An approved report is never overwritten.
+
+Schedule it with `client-reporter = "monthly 1 08:00"`.
 
 ## Growth cockpit
 
@@ -162,6 +178,7 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `outcome REF won\|lost\|reopened [--reason] [--at]` | Record an outcome by hand |
 | `audit-cold [--as-of]` | Run the cold-inquiry audit (Level 0, contacts nobody) |
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |
+| `report make \| approve` | Draft the monthly client report; approve it to get the shareable HTML |
 | `run-due` | Run every scheduled job that's due (call it from cron) |
 | `schedule` | Each scheduled job's last and next run |
 | `status` | Pause state, agents, ledger and log health |

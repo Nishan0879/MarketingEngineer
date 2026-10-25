@@ -3,6 +3,7 @@
 
 [client]
 id = "{client_id}"
+name = ""                     # shown on the client report; defaults to the id
 timezone = "UTC"
 
 # The one business outcome marketing is judged on (Section 14.1), counted
@@ -72,6 +73,12 @@ level = 0
 spec = "agents/growth-cockpit.md"
 max_actions_per_day = 5
 
+[agents.client-reporter]
+engine = "core"
+level = 0                     # drafts the report; the operator approves before the client sees it
+spec = "agents/client-reporter.md"
+max_actions_per_day = 5
+
 [agents.first-response-drafter]
 engine = "conversion"
 level = 1                     # drafts only; a human approves and sends
@@ -88,7 +95,8 @@ max_actions_per_day = 25
 # `mefw run-due` every 15 minutes from cron, Task Scheduler or any runner; it
 # runs whatever is due, in a safe order, through the same guardrails as running
 # a command by hand. Times are in [client] timezone. Formats: "every 2h",
-# "every 30m", "hourly", "daily 07:00", "weekly mon 07:00". Leave a job out to
+# "every 30m", "hourly", "daily 07:00", "weekly mon 07:00", "monthly 1 08:00"
+# (day 1-28). Leave a job out to
 # run it only by hand. `mefw schedule` shows last and next runs.
 [schedule]
 import                 = "every 2h"
@@ -98,6 +106,7 @@ cold-inquiry-auditor   = "weekly mon 06:00"
 re-engagement-drafter  = "weekly mon 06:15"
 experiment-tracker     = "weekly mon 06:30"
 growth-cockpit         = "weekly mon 07:00"
+client-reporter        = "monthly 1 08:00"
 
 # Where the import job finds the client's exports, relative to this workspace.
 # Drop fresh exports here (by hand, or with the lead tool's scheduled export).
