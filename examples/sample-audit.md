@@ -2,7 +2,7 @@
 
 _Conversion engine · agent `cold-inquiry-auditor` · Level 0 (observe). Nothing was sent to anyone._
 
-**Source:** lead ledger (320 leads, 2032 events from crm; last import 2026-10-25T06:02:39+00:00). Lead references are IDs in the client's lead-tracking tool; look them up there for names and details.
+**Source:** lead ledger (320 leads, 2032 events from crm; last import 2026-10-25T06:11:44+00:00). Lead references are IDs in the client's lead-tracking tool; look them up there for names and details.
 
 ## Headline
 

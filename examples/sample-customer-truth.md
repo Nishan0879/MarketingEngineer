@@ -1,6 +1,6 @@
 # What the market is telling us — example-coworking
 
-_Updated 2026-10-25 by `customer-truth-analyst` (Level 0). Generated from 522 imported signals plus recorded lost reasons (last import 2026-10-25T06:02:39+00:00); edit the insight records, not this file._
+_Updated 2026-10-25 by `customer-truth-analyst` (Level 0). Generated from 522 imported signals plus recorded lost reasons (last import 2026-10-25T06:11:45+00:00); edit the insight records, not this file._
 
 ## This period's headline
 
@@ -10,18 +10,18 @@ Receipts: `notes:N-5035`, `notes:N-5313`, `notes:N-5312`, `notes:N-5346`, `notes
 
 ## Members (B2C)
 
-Internet came up 8 times in the last 30 days (about 3 per period before).
+Internet came up 8 times in the last 30 days (about 4.7 per period before).
 
 Signals in the last 30 days: **44** (inquiry message 30, lost note 1, lost reason 2, tour note 11). Baseline: 183 over the 3 periods before.
 
 ### Rising pains and language
 
-- **Price and budget** — falling: 12 this period vs. ~21 per period before. `notes:N-5209`, `notes:N-5452`, `notes:N-5208`, `notes:N-5006`, `notes:N-5317` and 7 more
+- **Price and budget** — falling: 12 this period vs. ~19.3 per period before. `notes:N-5209`, `notes:N-5452`, `notes:N-5208`, `notes:N-5006`, `notes:N-5317` and 7 more
   - "Asked twice about the price; said it is above their budget." (tour note, `notes:N-5209`)
   - "Felt the monthly cost was too much compared with working from home." (inquiry message, `notes:N-5317`)
-- **Internet** — rising: 8 this period vs. ~3 per period before. `notes:N-5256`, `notes:N-5032`, `notes:N-5031`, `notes:N-5004`, `notes:N-5348` and 3 more
+- **Internet** — rising: 8 this period vs. ~4.7 per period before. `notes:N-5256`, `notes:N-5032`, `notes:N-5031`, `notes:N-5004`, `notes:N-5348` and 3 more
   - "Asked about internet speed; they upload large video files." (inquiry message, `notes:N-5256`)
-- **Chose an alternative** — falling: 4 this period vs. ~11.3 per period before. `notes:N-5317`, `notes:N-5179`, `notes:N-5030`, `L-1091 (lost reason)`
+- **Chose an alternative** — falling: 4 this period vs. ~10.7 per period before. `notes:N-5317`, `notes:N-5179`, `notes:N-5030`, `L-1091 (lost reason)`
   - "Felt the monthly cost was too much compared with working from home." (inquiry message, `notes:N-5317`)
   - "Chose a competitor" (lost reason, `L-1091 (lost reason)`)
 - **Meeting rooms** — falling: 1 this period vs. ~3 per period before. `notes:N-5123`
@@ -45,13 +45,13 @@ Themes in conversations with leads that later committed (43) vs. those that were
 | Theme | Won leads mentioning | Lost leads mentioning |
 |---|---|---|
 | Flexible terms | 24 (56%) | 9 (18%) |
-| Price and budget | 12 (28%) | 21 (43%) |
-| Chose an alternative | 5 (12%) | 12 (24%) |
+| Price and budget | 12 (28%) | 20 (41%) |
+| Chose an alternative | 5 (12%) | 11 (22%) |
 | Quiet space for calls | 5 (12%) | 4 (8%) |
 | Meeting rooms | 4 (9%) | 3 (6%) |
+| Internet | 6 (14%) | 8 (16%) |
 | Room to grow | 4 (9%) | 5 (10%) |
 | Parking | 3 (7%) | 3 (6%) |
-| Internet | 6 (14%) | 7 (14%) |
 | Community and events | 7 (16%) | 8 (16%) |
 
 **Confidence: medium** — every compared group has at least 43 leads; observational, so confounders may apply. A theme showing up more among won leads is a lead for a test, not proof that it causes commitment.
@@ -78,10 +78,8 @@ Signals in the last 30 days: **27** (inquiry message 17, lost reason 3, tour not
 - **Room to grow** — falling: 4 this period vs. ~7.7 per period before. `notes:N-5346`, `notes:N-5461`, `notes:N-5460`, `notes:N-5040`
   - "Team is growing to 12 next year; needs room to expand." (tour note, `notes:N-5346`)
   - "Asked if they can move to a bigger office mid-lease." (tour note, `notes:N-5461`)
-- **Chose an alternative** — falling: 1 this period vs. ~3.7 per period before. `notes:N-5371`
-  - "Felt the monthly cost was too much compared with working from home." (tour note, `notes:N-5371`)
 
-Steady: meeting rooms 11, price and budget 9, flexible terms 1.
+Steady: price and budget 14, meeting rooms 6, chose an alternative 5, flexible terms 1.
 
 ### Objections
 
@@ -97,11 +95,11 @@ Themes in conversations with leads that later committed (14) vs. those that were
 
 | Theme | Won leads mentioning | Lost leads mentioning |
 |---|---|---|
-| Price and budget | 1 (7%) | 9 (32%) |
-| Meeting rooms | 3 (21%) | 13 (46%) |
+| Price and budget | 1 (7%) | 10 (36%) |
+| Chose an alternative | 0 (0%) | 7 (25%) |
 | Parking | 2 (14%) | 10 (36%) |
 | Quiet space for calls | 7 (50%) | 8 (29%) |
-| Chose an alternative | 0 (0%) | 5 (18%) |
+| Meeting rooms | 3 (21%) | 12 (43%) |
 | Room to grow | 4 (29%) | 5 (18%) |
 
 **Confidence: low** — smallest compared group has 14 leads; observational, not a controlled test. A theme showing up more among won leads is a lead for a test, not proof that it causes commitment.
