@@ -6,7 +6,8 @@ runner enforces, in code and in this order:
 1. The activity log verifies (nobody rewrote history).
 2. The kill switch: client, engine and agent are all active (Section 11.3).
 3. The agent has a job spec on disk (Section 10).
-4. The agent's autonomy level covers this type of action (Section 11.1).
+4. The agent's autonomy level covers this type of action (Section 11.1). The level
+   comes from autonomy.py: promotions and demotions, not just the profile.
 5. The agent is under its per-day cap (Section 11.6).
 6. Dedupe: this action key has not already run (Section 11.6).
 7. The kill switch again, right before acting.
@@ -22,6 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable
 
+from . import autonomy
 from .activity_log import ActivityLog
 from .control import Control
 from .errors import DuplicateAction, GuardrailError, LevelTooLow, LogTampered, NoSpec, RateLimited
@@ -77,10 +79,11 @@ class Runner:
                 raise NoSpec(f"Agent '{agent}' has no job spec; agents without a spec do not run.")
             if action_type not in ACTION_LEVELS:
                 raise GuardrailError(f"Unknown action type '{action_type}'")
-            if cfg.level < ACTION_LEVELS[action_type]:
+            current = autonomy.level(self.ws, agent)
+            if current < ACTION_LEVELS[action_type]:
                 raise LevelTooLow(
                     f"'{action_type}' needs Level {ACTION_LEVELS[action_type]}; "
-                    f"'{agent}' is Level {cfg.level}."
+                    f"'{agent}' is Level {current}."
                 )
             if self._actions_today(agent) >= cfg.max_actions_per_day:
                 raise RateLimited(f"'{agent}' reached its cap of {cfg.max_actions_per_day} actions today.")

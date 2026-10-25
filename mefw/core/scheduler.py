@@ -41,7 +41,8 @@ AGENT = "scheduler"
 ACTION = "scheduled_run"
 # The order jobs run in when several are due at once.
 ORDER = ["import", "customer-truth-analyst", "cold-inquiry-auditor", "first-response-drafter",
-         "re-engagement-drafter", "experiment-tracker", "growth-cockpit", "client-reporter"]
+         "re-engagement-drafter", "experiment-tracker", "quality-check", "growth-cockpit", "client-reporter"]
+NOT_AGENTS = ("import", "quality-check")  # jobs the scheduler runs that aren't agents
 MAX_ATTEMPTS = 2  # per slot: the first try and one retry
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 LOCK = "control/scheduler.lock"
@@ -134,7 +135,7 @@ def schedules(ws: Workspace) -> dict[str, Schedule]:
     if unknown:
         raise ValueError(f"Unknown job(s) in [schedule]: {', '.join(unknown)}. Known jobs: {', '.join(ORDER)}")
     for name in raw:
-        if name != "import" and name not in ws.config.agents:
+        if name not in NOT_AGENTS and name not in ws.config.agents:
             raise ValueError(f"[schedule] has '{name}', but there is no [agents.{name}] in profile/mefw.toml")
     return {name: Schedule.parse(raw[name]) for name in ORDER if name in raw}
 
@@ -197,6 +198,7 @@ def command_for(ws: Workspace, job: str, now: datetime) -> list[list[str]]:
         "experiment-tracker": [["experiment", "measure", *c, "--at", at]],
         "growth-cockpit": [["cockpit", *c, "--as-of", at]],
         "client-reporter": [["report", "make", *c, "--as-of", at]],
+        "quality-check": [["quality", *c, "--as-of", at]],
     }[job]
 
 

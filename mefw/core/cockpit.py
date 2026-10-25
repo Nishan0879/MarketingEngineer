@@ -11,7 +11,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from . import customer_truth, experiments, metrics, scheduler
+from . import customer_truth, experiments, metrics, quality, scheduler
 from .activity_log import ActivityLog
 from .control import Control
 from .evidence import refs_md
@@ -142,8 +142,21 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
         if e["result"] in ("failed", "blocked", "escalated") and iso(start) <= e["ts"] < iso(end + timedelta(seconds=1))
     ]
 
+    data["quality"] = [r for r in quality.scorecard(ws, as_of) if "decided" in r]
+    changes = [e for e in log.entries() if e["action"] in ("promote", "demote")
+               and iso(start) <= e["ts"] < iso(end + timedelta(seconds=1))]
+
     # Decisions only the operator can make
     decisions = []
+    for e in changes:
+        if e["action"] == "demote":
+            decisions.append(f"`{e['inputs']['agent']}` was demoted to Level {e['inputs']['to']} "
+                             f"({e['output']['reason']}). Review what happened before promoting it again.")
+    for r in data["quality"]:
+        if r["over_budget"]:
+            decisions.append(f"`{r['agent']}`: {r['correction_rate']:.0%} of its last {r['correction_n']} drafts were "
+                             f"edited or rejected, over its {r['budget']:.0%} budget. Look for the pattern in "
+                             "rules/corrections.md and fix the playbook or rules.")
     for e in exps:
         if e["status"] == "proposed":
             decisions.append(f"Approve or drop {e['id']} ({e['name']}): `mefw experiment approve {e['id']}`")
@@ -327,6 +340,10 @@ def render(data: dict) -> str:
             w(f"- {x['ts'][:16]} `{x['agent']}` {x['action']}: {x['result']} — {x['reason']}")
     else:
         w("- None this week.")
+    for r in data.get("quality", []):
+        un = f"{r['unedited_rate']:.0%}" if r["unedited_rate"] is not None else "n/a"
+        w(f"- `{r['agent']}` (Level {r['level']}), last 28 days: {r['decided']} drafts decided, {un} approved "
+          f"without edits, {r['claims_caught']} unsupported claims caught before review.")
     w("")
 
     w("## Decisions needed from the operator")

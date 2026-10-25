@@ -142,6 +142,11 @@ class RunnerTests(unittest.TestCase):
 
     def test_unsafe_retry_refused_and_agent_paused(self):
         r = self.runner(level=2)
+        # Above Level 1 only a recorded promotion counts (autonomy.py), never the profile alone.
+        with self.assertRaises(LevelTooLow):
+            r.run(AGENT, "send", "act", "send:L-0", lambda: {})
+        (self.ws.root / "control").mkdir(exist_ok=True)
+        (self.ws.root / "control/autonomy.json").write_text(json.dumps({AGENT: {"level": 2, "since": "2026-10-01"}}))
         def boom():
             raise RuntimeError("timeout after sending?")
         with self.assertRaises(RuntimeError):

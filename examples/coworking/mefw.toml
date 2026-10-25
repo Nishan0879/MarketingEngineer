@@ -108,6 +108,7 @@ customer-truth-analyst = "daily 06:30"
 cold-inquiry-auditor   = "weekly mon 06:00"
 re-engagement-drafter  = "weekly mon 06:15"
 experiment-tracker     = "weekly mon 06:30"
+quality-check          = "daily 06:45"
 growth-cockpit         = "weekly mon 07:00"
 client-reporter        = "monthly 1 08:00"
 

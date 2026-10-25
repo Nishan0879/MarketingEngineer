@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 — 2026-10-25
+- Per-agent quality numbers (Section 14.3), from `mefw quality` and in the cockpit:
+  - runs, and failed, blocked, duplicate and late actions
+  - escalations and serious errors
+  - for drafting agents: approval without edits, correction time, unsupported claims caught, and correction rate against the error budget
+- Levels are recorded in `control/autonomy.json` and enforced by the runner. The profile sets only the starting level, capped at 1. An unreadable file fails closed.
+- `mefw promote` raises an agent one level, and only when the Section 11.2 default bar is met. Level 2 needs a written playbook. Level 3 needs a budget cap and the client's approval. Each change goes to the activity log and the agent's change log.
+- `mefw demote` records a serious error (Section 11.3) and drops the agent one level.
+- Error budget: an agent at Level 2+ drops back to Level 1 when its correction rate over its last 20 drafts goes above `max_correction_rate`. It is enforced by `mefw quality` and the new scheduled `quality-check` job.
+- The cockpit lists demotions and agents over their error budget.
+
 ## 0.7.0 — 2026-10-25
 - Monthly client report (Section 18 week 4; answers the Section 22 question of what the client sees). It is separate from the internal cockpit.
 - New Level 0 agent `client-reporter`. It drafts `reports/YYYY-MM-client-report.md` with:

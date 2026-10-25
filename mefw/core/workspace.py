@@ -26,6 +26,7 @@ class AgentConfig:
     spec: str
     max_actions_per_day: int
     max_consecutive_errors: int = 2
+    max_correction_rate: float = 0.25  # error budget: share of drafts edited or rejected (Section 11.3)
 
 
 @dataclass
@@ -164,6 +165,7 @@ def load_config(path: Path) -> Config:
             spec=a["spec"],
             max_actions_per_day=int(a.get("max_actions_per_day", 10)),
             max_consecutive_errors=int(a.get("max_consecutive_errors", 2)),
+            max_correction_rate=float(a.get("max_correction_rate", 0.25)),
         )
     return Config(
         client_id=client["id"],
