@@ -1,0 +1,36 @@
+[preset]
+label = "Google Sheets or Excel lead sheet"
+export = "File > Download > Comma-separated values (.csv) in Google Sheets, or Save As > CSV in Excel. For a client with no CRM, start from examples/onboarding/lead-sheet-template.csv."
+notes = "Matches the template's headers and the most common hand-made variants."
+
+[columns]
+ref               = ["Lead ID", "ID", "Lead #", "Ref", "Reference"]
+inquired_at       = ["Created At", "Date", "Inquiry Date", "Enquiry Date", "Date Received", "Created"]
+channel           = ["Source", "Channel", "Lead Source", "How did you hear about us"]
+segment           = ["Segment", "Type", "Interest", "Product", "Looking For"]
+value             = ["Value", "Monthly Value", "Deal Value", "Amount"]
+first_response_at = ["First Response At", "First Reply", "Replied At", "First Contacted"]
+last_outbound_at  = ["Last Outbound At", "Last Contacted", "Last Follow Up", "Last Follow-up"]
+last_inbound_at   = ["Last Inbound At", "Last Reply From Them", "Last Heard From"]
+outbound_count    = ["Outbound Count", "Follow Ups", "Follow-ups", "Times Contacted"]
+stage             = ["Stage", "Status", "Pipeline Stage"]
+outcome           = ["Outcome", "Result", "Status", "Won/Lost"]
+outcome_at        = ["Closed At", "Close Date", "Closed", "Date Closed"]
+lost_reason       = ["Lost Reason", "Reason Lost", "Why Lost", "Notes On Loss"]
+opted_out         = ["Do Not Contact", "Opted Out", "Unsubscribed", "DNC"]
+campaign          = ["UTM Campaign", "Campaign"]
+
+# Columns holding the date a stage was reached, keyed by the stage name.
+[stage_dates]
+"Qualified"   = ["Qualified At", "Date Qualified"]
+"Tour Booked" = ["Tour Booked At", "Tour Date", "Viewing Date"]
+
+[stages]
+inquire = ["New", "New Inquiry", "New Enquiry", "Lead", "Contacted"]
+qualify = ["Qualified"]
+meet    = ["Tour Booked", "Tour Done", "Tour Completed", "Viewing", "Visit Booked", "Proposal Sent"]
+commit  = ["Signed", "Won", "Closed Won", "Member", "Moved In"]
+
+[outcome_values]
+won  = ["Won", "Signed", "Closed Won", "Member", "Moved In"]
+lost = ["Lost", "Closed Lost", "Dead", "Not Interested", "No Response"]

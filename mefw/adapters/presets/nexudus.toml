@@ -1,0 +1,27 @@
+[preset]
+label = "Nexudus (CRM opportunities export)"
+export = "CRM > Opportunities > select all (or filter) > Actions > Export, as CSV. Ask for the opportunity's ID, created date, stage, type, source, value and close details."
+notes = "Coworking software: stage and type names are set per space. Column names vary by version and export template; `mefw onboard check` shows what matched."
+
+[columns]
+ref               = ["Id", "Opportunity Id", "OpportunityId", "Unique Id"]
+inquired_at       = ["Created On", "CreatedOn", "Created", "Created Date"]
+channel           = ["Source", "Lead Source", "Opportunity Source", "Referral Source"]
+segment           = ["Opportunity Type", "Type", "Product", "Interested In"]
+value             = ["Value", "Estimated Value", "Expected Value", "Amount"]
+last_outbound_at  = ["Last Contacted", "Last Contact", "Last Activity"]
+stage             = ["Stage", "Opportunity Stage", "Status"]
+outcome           = ["Status", "Result", "Outcome", "Stage"]
+outcome_at        = ["Closed On", "Close Date", "Closed Date", "Won On", "Lost On"]
+lost_reason       = ["Lost Reason", "Reason", "Close Reason"]
+campaign          = ["Utm Campaign", "UTM Campaign", "Campaign"]
+
+[stages]
+inquire = ["New", "New Lead", "Enquiry", "Inquiry", "Contacted"]
+qualify = ["Qualified"]
+meet    = ["Tour Booked", "Tour", "Tour Completed", "Visit", "Proposal", "Proposal Sent", "Negotiation"]
+commit  = ["Won", "Closed Won", "Signed"]
+
+[outcome_values]
+won  = ["Won", "Closed Won", "Signed"]
+lost = ["Lost", "Closed Lost", "Dead"]

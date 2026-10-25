@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 from importlib import resources
 from pathlib import Path
 
+from .adapters import onboarding
 from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
 from .adapters.signals_csv import import_signals
@@ -94,6 +95,43 @@ def cmd_import_signals(args) -> int:
     log.append(OPERATOR, "import_signals", "ok", {"file": Path(args.file).name, "kind": args.kind},
                {"summary": rep.summary(), "skipped": rep.skipped[:20]})
     print(rep.summary())
+    return 0
+
+
+def cmd_onboard(args) -> int:
+    if args.action == "presets":
+        for name, p in onboarding.list_presets().items():
+            print(f"{name:<12} {p['preset']['label']}\n             Export: {p['preset']['export']}")
+        return 0
+    if args.action == "check":
+        ws = _ws(args) if (args.client or os.environ.get("MEFW_CLIENT")) else None
+        rep = onboarding.check(Path(args.file), args.preset, ws)
+        print(onboarding.render(rep))
+        if not args.preset:
+            print(f"\nNext: mefw onboard apply {args.file} --preset {rep['preset']} --client DIR")
+        return 0 if rep["ready"] else 1
+    ws = _ws(args)
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    extra = {}
+    for s in args.stage or []:
+        name, _, stage = s.rpartition("=")
+        if not name:
+            raise ValueError(f"--stage takes NAME=STAGE, not {s!r}")
+        extra[name.strip()] = stage.strip().lower()
+    at = datetime.now(timezone.utc)
+    rep = onboarding.apply(ws, Path(args.file), args.preset, extra, at)
+    log.append(OPERATOR, "onboard", "ok", {"file": rep["file"], "preset": args.preset},
+               {"summary": f"Mapped {len(rep['columns'])} columns from the {args.preset} preset",
+                "columns": rep["columns"], "stages_added": rep["stages_added"], "backup": rep["backup"]})
+    print(f"Updated profile/mefw.toml for {rep['file']} ({rep['label']}); the old one is {rep['backup']}.")
+    print(f"Mapped {len(rep['columns'])} columns; {rep['readable_rows']} of {rep['rows']} rows read cleanly.")
+    if rep["stages_added"]:
+        print("Stage names added: " + ", ".join(rep["stages_added"]))
+    left = [v for v in rep["unmapped_stages"] if v not in extra]
+    if left:
+        print("Still not placed in the funnel: " + ", ".join(left))
+    print(f"Next: mefw import-csv {args.file} --client {args.client or ws.root}")
     return 0
 
 
@@ -969,6 +1007,18 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("file")
     sp.add_argument("--kind", help="signal kind for every row, if the file has no kind column")
     sp.set_defaults(fn=cmd_import_signals)
+
+    sp = sub.add_parser("onboard", help="map a client's lead export with a preset for their lead tool")
+    osub = sp.add_subparsers(dest="action", required=True)
+    osub.add_parser("presets", help="the lead tools with a preset, and how to export from each")
+    c = with_client(osub.add_parser("check", help="what a preset makes of an export (picks one if not given)"))
+    c.add_argument("file")
+    c.add_argument("--preset")
+    c = with_client(osub.add_parser("apply", help="write the mapping into profile/mefw.toml (keeps a backup)"))
+    c.add_argument("file")
+    c.add_argument("--preset", required=True)
+    c.add_argument("--stage", action="append", help="place a stage value in the funnel: \"Tour Done=meet\"")
+    sp.set_defaults(fn=cmd_onboard)
 
     sp = with_client(sub.add_parser("truth", help="update the customer truth file"))
     sp.add_argument("--as-of")

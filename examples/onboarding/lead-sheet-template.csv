@@ -1,0 +1,4 @@
+Lead ID,Created At,Source,Segment,Value,First Response At,Last Outbound At,Last Inbound At,Outbound Count,Stage,Outcome,Closed At,Lost Reason,Do Not Contact,UTM Campaign,Qualified At,Tour Booked At
+L-0001,2026-10-01 09:12,Website form,Day pass,25,2026-10-01 09:40,2026-10-03 10:00,2026-10-01 11:02,2,Tour Booked,,,,,,2026-10-01 11:30,2026-10-02 15:00
+L-0002,2026-10-02 14:30,Google Business Profile,Office lease,1800,2026-10-02 16:05,2026-10-09 09:00,,3,Signed,Won,2026-10-20,,,,2026-10-03 10:00,2026-10-05 11:00
+L-0003,2026-10-04 18:45,Instagram,Hot desk,250,2026-10-05 09:00,2026-10-12 09:00,,3,Lost,Lost,2026-10-15,Went with a cheaper space,,,,

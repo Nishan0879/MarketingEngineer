@@ -1,0 +1,26 @@
+[preset]
+label = "OfficeRnD (leads or opportunities export)"
+export = "Use a report or the leads/opportunities list export, as CSV. If your plan has no lead export, keep a lead sheet instead (the spreadsheet preset)."
+notes = "Coworking software: stages are set per organisation. Column names vary; `mefw onboard check` shows what matched."
+
+[columns]
+ref               = ["Id", "_id", "Lead Id", "Opportunity Id"]
+inquired_at       = ["Created", "Created At", "Created Date", "Date Created"]
+channel           = ["Source", "Lead Source", "Channel"]
+segment           = ["Interested In", "Type", "Plan", "Resource Type"]
+value             = ["Value", "Deal Size", "Amount"]
+stage             = ["Status", "Stage"]
+outcome           = ["Status", "Outcome", "Stage"]
+outcome_at        = ["Closed", "Closed At", "Close Date", "Converted On"]
+lost_reason       = ["Lost Reason", "Reason"]
+campaign          = ["UTM Campaign", "Campaign"]
+
+[stages]
+inquire = ["New", "Lead", "Contacted"]
+qualify = ["Qualified"]
+meet    = ["Tour Scheduled", "Tour Booked", "Toured", "Proposal", "Proposal Sent"]
+commit  = ["Won", "Converted", "Member", "Signed"]
+
+[outcome_values]
+won  = ["Won", "Converted", "Signed"]
+lost = ["Lost", "Closed Lost", "Dead"]

@@ -62,6 +62,10 @@ class CsvSource:
                 return outcome
         return None
 
+    def _stage(self, raw: str | None) -> str | None:
+        # Tools like HubSpot keep "Closed Lost" in the stage column. It's an outcome, not a funnel stage.
+        return None if raw and raw.strip().lower() in self.outcome_values.get("lost", set()) else raw
+
     def _activities(self) -> dict[str, list]:
         out = defaultdict(list)
         if not self.activities_csv:
@@ -109,7 +113,7 @@ class CsvSource:
                         stage: parse_ts(row[col]) for stage, col in self.stage_dates.items()
                         if row.get(col) and row[col].strip()
                     },
-                    current_stage=self._get(row, "stage"),
+                    current_stage=self._stage(self._get(row, "stage")),
                     outcome=self._outcome(self._get(row, "outcome")),
                     outcome_at=parse_ts(self._get(row, "outcome_at")),
                     lost_reason=self._get(row, "lost_reason"),
