@@ -14,7 +14,7 @@ from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
 from .adapters.signals_csv import import_signals
 from .core.activity_log import ActivityLog
-from .core import cockpit, customer_truth, experiments, scheduler, truth_report
+from .core import client_report, cockpit, customer_truth, experiments, scheduler, truth_report
 from .core.control import Control
 from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
@@ -224,6 +224,42 @@ def cmd_cockpit(args) -> int:
     print(res.output.get("summary", ""))
     if res.output.get("memo"):
         print(f"Memo: {ws.root / res.output['memo']}")
+    return 0
+
+
+def cmd_report(args) -> int:
+    ws = _ws(args)
+    at = parse_ts(args.as_of) if getattr(args, "as_of", None) else datetime.now(timezone.utc)
+    month = args.month or client_report.default_month(at)
+
+    if args.action == "approve":
+        log = ActivityLog(ws.log_path, ws.client_id)
+        log.verify()
+        meta, out = client_report.approve(ws, month, args.by, at)
+        log.append(args.by, "report_approve", "ok", {"month": month}, {"summary": f"Approved the {month} report"})
+        print(f"Approved. Share this with the client (open it in a browser and print to PDF if needed): {out}")
+        return 0
+
+    existing = client_report.path_for(ws, month)
+    if existing.exists() and client_report.load(existing)[0].get("status") == "approved":
+        print(f"The {month} report is already approved; leaving it as it is.")
+        return 0
+
+    def job(runner):
+        data = client_report.build(ws, runner.ledger, month, at)
+        path = client_report.write(ws, data, at)
+        return {"summary": f"Drafted the {data['label']} client report", "report": str(path.relative_to(ws.root)),
+                "notes": client_report.load(path)[0]["operator_notes"]}
+
+    res = _run_agent(ws, client_report.AGENT, "client_report", f"report:{month}:{at.isoformat()}", job,
+                     {"month": month})
+    if res is None:
+        return 2
+    print(res.output.get("summary", ""))
+    for note in res.output.get("notes", []):
+        print(f"  note: {note}")
+    if res.output.get("report"):
+        print(f"Read and edit {ws.root / res.output['report']}, then `mefw report approve --month {month}`.")
     return 0
 
 
@@ -587,6 +623,17 @@ def main(argv: list[str] | None = None) -> int:
     sp = with_client(sub.add_parser("cockpit", help="build this week's growth cockpit memo"))
     sp.add_argument("--as-of")
     sp.set_defaults(fn=cmd_cockpit)
+
+    sp = sub.add_parser("report", help="the monthly client report: make a draft, approve it to share")
+    rsub = sp.add_subparsers(dest="action", required=True)
+    r = with_client(rsub.add_parser("make", help="draft the client report (Level 0)"))
+    r.add_argument("--month", help="YYYY-MM (default: the last complete month)")
+    r.add_argument("--as-of")
+    r = with_client(rsub.add_parser("approve", help="approve the report and write the HTML copy to share"))
+    r.add_argument("--month", help="YYYY-MM (default: the last complete month)")
+    r.add_argument("--by", default=OPERATOR)
+    r.add_argument("--as-of")
+    sp.set_defaults(fn=cmd_report)
 
     sp = sub.add_parser("drafts", help="first-response and re-engagement drafts: make, review, approve, reject, "
                                        "mark sent")

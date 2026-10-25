@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 — 2026-10-25
+- Monthly client report (Section 18 week 4; answers the Section 22 question of what the client sees). It is separate from the internal cockpit.
+- New Level 0 agent `client-reporter`. It drafts `reports/YYYY-MM-client-report.md` with:
+  - results against last month
+  - inquiry handling per segment, with sample sizes and small samples marked
+  - confirmed insights only, in the customer's words with source references removed
+  - experiments closed and running
+  - follow-up sent and quiet leads that came back
+  - what's next, and what would help from the client
+- `mefw report approve` refuses placeholders, draft wording, source references, agent names and contact details. It writes a printable HTML copy. An approved report is never overwritten.
+- Scheduler: `monthly <day> HH:MM` schedules, and `client-reporter` runs last in the order.
+- Optional `[client] name` for the report title.
+
 ## 0.6.0 — 2026-10-25
 - Scheduled runs (Section 19, "Scheduled workflows"; answers the Section 22 question of where agents run day to day). A `[schedule]` table in the profile sets each job's schedule in the client's timezone (`every 2h`, `daily 07:00`, `weekly mon 07:00`).
 - `mefw run-due`, called every 15 minutes by cron or a systemd timer, runs each job whose latest slot hasn't run, in a fixed order, through the same commands and guardrails as running them by hand. Missed slots aren't replayed. A failed slot is retried once. A lock prevents overlapping runs. Every attempt is logged.

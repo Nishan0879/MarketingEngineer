@@ -41,7 +41,7 @@ AGENT = "scheduler"
 ACTION = "scheduled_run"
 # The order jobs run in when several are due at once.
 ORDER = ["import", "customer-truth-analyst", "cold-inquiry-auditor", "first-response-drafter",
-         "re-engagement-drafter", "experiment-tracker", "growth-cockpit"]
+         "re-engagement-drafter", "experiment-tracker", "growth-cockpit", "client-reporter"]
 MAX_ATTEMPTS = 2  # per slot: the first try and one retry
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 LOCK = "control/scheduler.lock"
@@ -50,10 +50,11 @@ LOCK = "control/scheduler.lock"
 @dataclass
 class Schedule:
     text: str
-    kind: str          # every | daily | weekly
+    kind: str          # every | daily | weekly | monthly
     minutes: int = 0   # every: interval
     at: time | None = None
     weekday: int = 0
+    day: int = 1       # monthly: day of the month
 
     @classmethod
     def parse(cls, text: str) -> "Schedule":
@@ -72,18 +73,28 @@ class Schedule:
         m = re.fullmatch(r"weekly (mon|tue|wed|thu|fri|sat|sun)\w* (\d{1,2}):(\d{2})", t)
         if m:
             return cls(text, "weekly", at=time(int(m.group(2)), int(m.group(3))), weekday=DAYS.index(m.group(1)))
+        m = re.fullmatch(r"monthly (\d{1,2}) (\d{1,2}):(\d{2})", t)
+        if m:
+            if not 1 <= int(m.group(1)) <= 28:
+                raise ValueError(f"'{text}': use a day from 1 to 28 so every month has it")
+            return cls(text, "monthly", at=time(int(m.group(2)), int(m.group(3))), day=int(m.group(1)))
         raise ValueError(f"Can't read schedule '{text}'. Use \"every 2h\", \"every 30m\", \"hourly\", "
-                         "\"daily 07:00\" or \"weekly mon 07:00\".")
+                         "\"daily 07:00\", \"weekly mon 07:00\" or \"monthly 1 08:00\".")
 
     @property
     def period(self) -> timedelta:
         return {"every": timedelta(minutes=self.minutes), "daily": timedelta(days=1),
-                "weekly": timedelta(days=7)}[self.kind]
+                "weekly": timedelta(days=7), "monthly": timedelta(days=31)}[self.kind]
 
     def latest_slot(self, now: datetime, tz) -> datetime:
         """The most recent scheduled time at or before now, in UTC. Wall-clock times follow the client's timezone."""
         local = now.astimezone(tz)
         midnight = datetime.combine(local.date(), time(0), tz)
+        if self.kind == "monthly":
+            slot = datetime.combine(local.date().replace(day=self.day), self.at)
+            if slot > local.replace(tzinfo=None):
+                slot = _add_months(slot, -1)
+            return slot.replace(tzinfo=tz).astimezone(timezone.utc)
         if self.kind == "every":
             elapsed = int((local.replace(tzinfo=None) - midnight.replace(tzinfo=None)).total_seconds() // 60)
             slot = midnight.replace(tzinfo=None) + timedelta(minutes=elapsed - elapsed % self.minutes)
@@ -96,10 +107,18 @@ class Schedule:
         return slot.replace(tzinfo=tz).astimezone(timezone.utc)
 
     def next_slot(self, now: datetime, tz) -> datetime:
+        if self.kind == "monthly":
+            local = _add_months(self.latest_slot(now, tz).astimezone(tz).replace(tzinfo=None), 1)
+            return local.replace(tzinfo=tz).astimezone(timezone.utc)
         local = self.latest_slot(now, tz).astimezone(tz).replace(tzinfo=None) + self.period
         if self.kind == "every" and local.date() != self.latest_slot(now, tz).astimezone(tz).date():
             local = datetime.combine(local.date(), time(0))  # intervals restart at local midnight
         return local.replace(tzinfo=tz).astimezone(timezone.utc)
+
+
+def _add_months(dt: datetime, n: int) -> datetime:
+    y, m = divmod(dt.month - 1 + n, 12)
+    return dt.replace(year=dt.year + y, month=m + 1)  # day is 1-28, so it exists in every month
 
 
 def client_tz(ws: Workspace):
@@ -177,6 +196,7 @@ def command_for(ws: Workspace, job: str, now: datetime) -> list[list[str]]:
         "re-engagement-drafter": [["drafts", "make", *c, "--agent", job, "--at", at]],
         "experiment-tracker": [["experiment", "measure", *c, "--at", at]],
         "growth-cockpit": [["cockpit", *c, "--as-of", at]],
+        "client-reporter": [["report", "make", *c, "--as-of", at]],
     }[job]
 
 
