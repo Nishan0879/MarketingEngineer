@@ -10,7 +10,7 @@ core
 0 — starting level
 
 ## Trigger / schedule
-Weekly, after new notes, messages and reviews are imported; daily for high-volume clients.
+Weekly, after new notes, messages and reviews are imported; daily for high-volume clients. Set in `[schedule]` of `profile/mefw.toml`; `mefw run-due` runs it when due.
 
 ## Inputs
 - Signals in the ledger: call and tour notes, inquiry messages, lost-deal notes, reviews, tickets (imported through an adapter)

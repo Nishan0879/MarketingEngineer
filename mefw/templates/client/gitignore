@@ -1,2 +1,4 @@
 data/
 control/*.tmp
+inbox/
+control/scheduler.lock

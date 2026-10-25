@@ -10,7 +10,7 @@ conversion
 1 — starting level (drafts only; a human approves and sends)
 
 ## Trigger / schedule
-Weekly after the cold-inquiry audit, or on demand with `mefw drafts make`.
+Weekly after the cold-inquiry audit, or on demand with `mefw drafts make`. Set in `[schedule]` of `profile/mefw.toml`; `mefw run-due` runs it when due.
 
 ## Inputs
 - The lead/outcome ledger, and signals linked to each lead

@@ -87,6 +87,29 @@ level = 1                     # drafts only; a human approves and sends
 spec = "agents/re-engagement-drafter.md"
 max_actions_per_day = 25
 
+# When jobs run on their own (Section 19, "Scheduled workflows"). Call
+# `mefw run-due` every 15 minutes from cron, Task Scheduler or any runner; it
+# runs whatever is due, in a safe order, through the same guardrails as running
+# a command by hand. Times are in [client] timezone. Formats: "every 2h",
+# "every 30m", "hourly", "daily 07:00", "weekly mon 07:00". Leave a job out to
+# run it only by hand. `mefw schedule` shows last and next runs.
+[schedule]
+import                 = "every 2h"
+first-response-drafter = "every 2h"
+customer-truth-analyst = "daily 06:30"
+cold-inquiry-auditor   = "weekly mon 06:00"
+re-engagement-drafter  = "weekly mon 06:15"
+experiment-tracker     = "weekly mon 06:30"
+growth-cockpit         = "weekly mon 07:00"
+
+# Where the import job finds the client's exports, relative to this workspace.
+# Drop fresh exports here (by hand, or with the lead tool's scheduled export).
+# Unchanged files are skipped. inbox/ is gitignored: exports stay local.
+[schedule.inbox]
+leads      = "inbox/leads.csv"
+activities = "inbox/activities.csv"   # optional
+signals    = "inbox/signals.csv"      # optional
+
 [conversion.cold_audit]
 lookback_days = 180
 cold_after_days = 14          # no activity for this long = cold

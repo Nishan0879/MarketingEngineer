@@ -2,7 +2,7 @@
 
 A reusable system for running marketing for lead-based businesses with AI agents, overseen by one operator. The operating manual is [MarketingEngineerFW.md](MarketingEngineerFW.md); this repository is the code that enforces it.
 
-**Built so far (v0.5):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, and the conversion engine's first job, a cold-inquiry audit. Client-agnostic: a new client is a new workspace plus a config file.
+**Built so far (v0.6):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, the conversion engine's first job, a cold-inquiry audit, and a scheduler that runs it all on its own. Client-agnostic: a new client is a new workspace plus a config file.
 
 ## Quick start
 
@@ -105,6 +105,35 @@ Nothing is sent by the system:
 
 `mefw drafts record` tracks the Section 11.2 bar for Level 2 for each agent: 20 approvals in a row without edits over at least 2 weeks. The cockpit flags it when it's met, and lists first responses still waiting with how long the oldest lead has waited. Promotion still needs your sign-off.
 
+## Running on a schedule
+
+Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"` or `"weekly mon 07:00"`. Leave a job out to run it only by hand.
+
+`mefw run-due` runs every job whose latest slot hasn't run yet:
+- **Order.** Jobs run in a fixed order: import, customer truth, cold audit, first responses, re-engagement, experiments, cockpit. Imports land before the agents that read them.
+- **Same guardrails.** Each job is the same command you'd run by hand, so the kill switch, levels, caps and dedupe all still apply. A paused agent shows as `blocked`.
+- **Missed slots.** These aren't replayed; only the latest slot runs.
+- **Failures.** A failed slot is retried once on the next call, then left for you. Every attempt is in the activity log as a `scheduler` entry.
+- **Overlap.** A lock stops two runs from overlapping.
+- **Imports.** The import job reads the exports listed in `[schedule.inbox]`, `inbox/leads.csv` by default, and skips them if they haven't changed. `inbox/` is gitignored.
+- **Status.** `mefw schedule` shows each job's last and next run. The weekly cockpit flags any job that has fallen two runs behind.
+
+Call it every 15 minutes from whatever runs scheduled tasks on the operator's machine or server:
+
+```
+# cron (Linux/macOS): crontab -e
+*/15 * * * * cd /path/to/MarketingEngineer && python -m mefw run-due --client /path/to/client-acme >> /path/to/client-acme/logs/run-due.txt 2>&1
+```
+
+```
+# systemd timer: mefw-acme.service runs the same command; mefw-acme.timer has
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+```
+
+On Windows, the scheduler needs `fcntl`, like the rest of the core, so run it under WSL with the cron line above. Exports stay on the machine that runs it. Nothing is sent from here, so an unattended run can only import, analyze and draft.
+
 ## Growth cockpit
 
 `mefw cockpit` (agent `growth-cockpit`, Level 0) writes `cockpit/YYYY-Www.md` using the Section 15 template:
@@ -133,6 +162,8 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `outcome REF won\|lost\|reopened [--reason] [--at]` | Record an outcome by hand |
 | `audit-cold [--as-of]` | Run the cold-inquiry audit (Level 0, contacts nobody) |
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |
+| `run-due` | Run every scheduled job that's due (call it from cron) |
+| `schedule` | Each scheduled job's last and next run |
 | `status` | Pause state, agents, ledger and log health |
 | `log verify \| render` | Check the hash chain, or write `logs/agent-activity.md` |
 

@@ -10,7 +10,7 @@ core
 0 — starting level
 
 ## Trigger / schedule
-Weekly before the cockpit memo, or on demand with `mefw experiment measure`.
+Weekly before the cockpit memo, or on demand with `mefw experiment measure`. Set in `[schedule]` of `profile/mefw.toml`; `mefw run-due` runs it when due.
 
 ## Inputs
 - Experiment briefs in `experiments/active/` (front matter holds the metric, comparison and decision criteria)
