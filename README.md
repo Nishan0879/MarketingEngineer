@@ -2,7 +2,7 @@
 
 A reusable system for running marketing for lead-based businesses with AI agents, overseen by one operator. The operating manual is [MarketingEngineerFW.md](MarketingEngineerFW.md); this repository is the code that enforces it.
 
-**Built so far (v0.7):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, the conversion engine's first job, a cold-inquiry audit, a scheduler that runs it all on its own, and a monthly report for the client. Client-agnostic: a new client is a new workspace plus a config file.
+**Built so far (v0.8):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, two conversion drafting agents held for approval (first replies to new inquiries and re-engagement of cold leads), CSV adapters for any lead-tracking tool and for notes/messages/reviews, the conversion engine's first job, a cold-inquiry audit, a scheduler that runs it all on its own, a monthly report for the client, and per-agent quality numbers with promotion and demotion checked in code. Client-agnostic: a new client is a new workspace plus a config file.
 
 ## Quick start
 
@@ -110,7 +110,7 @@ Nothing is sent by the system:
 Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"`, `"weekly mon 07:00"` or `"monthly 1 08:00"`. Leave a job out to run it only by hand.
 
 `mefw run-due` runs every job whose latest slot hasn't run yet:
-- **Order.** Jobs run in a fixed order: import, customer truth, cold audit, first responses, re-engagement, experiments, cockpit, client report. Imports land before the agents that read them.
+- **Order.** Jobs run in a fixed order: import, customer truth, cold audit, first responses, re-engagement, experiments, quality check, cockpit, client report. Imports land before the agents that read them.
 - **Same guardrails.** Each job is the same command you'd run by hand, so the kill switch, levels, caps and dedupe all still apply. A paused agent shows as `blocked`.
 - **Missed slots.** These aren't replayed; only the latest slot runs.
 - **Failures.** A failed slot is retried once on the next call, then left for you. Every attempt is in the activity log as a `scheduler` entry.
@@ -133,6 +133,24 @@ Persistent=true
 ```
 
 On Windows, the scheduler needs `fcntl`, like the rest of the core, so run it under WSL with the cron line above. Exports stay on the machine that runs it. Nothing is sent from here, so an unattended run can only import, analyze and draft.
+
+## Autonomy: quality, promotion and demotion
+
+`mefw quality` shows each agent's numbers for the last 28 days (Section 14.3):
+- runs, failures, blocked, duplicate and late actions, escalations and serious errors
+- for drafting agents: the share approved without edits, typical correction time, unsupported claims caught before review, and the correction rate against the agent's error budget
+
+The weekly cockpit carries the drafting agents' lines.
+
+**Levels.** An agent's level in `profile/mefw.toml` is only where it starts, and only up to Level 1. Every change after that is recorded in `control/autonomy.json`, which is what the runner enforces. Each change is also written to the activity log and as a line in the agent's own change log.
+
+- `mefw promote <agent> --reason ...` raises an agent one level, and only when the Section 11.2 default bar is met. `--check` shows what's missing.
+  - Level 0 → 1: successful runs over 14+ days with no recent failures.
+  - Level 1 → 2: 20 unedited approvals in a row over 2+ weeks, plus `--playbook` pointing at the written playbook.
+  - Level 2 → 3: 30+ days at Level 2 with no serious error, plus `--budget-cap` and `--client-approval`.
+- `mefw demote <agent> --kind ...` records a serious error and drops the agent one level (Section 11.3). The kinds are `false_claim`, `opted_out_contact`, `duplicate_send`, `budget_overrun` and `accuracy_complaint`. Use `--kind operator` to step it down for another reason.
+- **Error budget.** An agent at Level 2 or above drops back to Level 1 when more than `max_correction_rate` (default 25%) of its last 20 decided drafts were edited or rejected. `mefw quality` enforces this, and so does the scheduled `quality-check` job.
+- An unreadable `control/autonomy.json` fails closed: every agent is treated as Level 0.
 
 ## Monthly client report
 
@@ -179,6 +197,8 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `audit-cold [--as-of]` | Run the cold-inquiry audit (Level 0, contacts nobody) |
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |
 | `report make \| approve` | Draft the monthly client report; approve it to get the shareable HTML |
+| `quality` | Per-agent quality numbers; enforces the error budget |
+| `promote <agent>` / `demote <agent>` | Change an agent's level with your sign-off, or after a serious error |
 | `run-due` | Run every scheduled job that's due (call it from cron) |
 | `schedule` | Each scheduled job's last and next run |
 | `status` | Pause state, agents, ledger and log health |

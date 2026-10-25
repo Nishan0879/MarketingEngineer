@@ -14,7 +14,7 @@ from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
 from .adapters.signals_csv import import_signals
 from .core.activity_log import ActivityLog
-from .core import client_report, cockpit, customer_truth, experiments, scheduler, truth_report
+from .core import autonomy, client_report, cockpit, quality, customer_truth, experiments, scheduler, truth_report
 from .core.control import Control
 from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
@@ -477,6 +477,43 @@ def cmd_resume(args) -> int:
     return 0
 
 
+def cmd_quality(args) -> int:
+    ws = _ws(args)
+    ActivityLog(ws.log_path, ws.client_id).verify()
+    at = parse_ts(args.as_of) if args.as_of else datetime.now(timezone.utc)
+    for d in autonomy.enforce_error_budget(ws, at):
+        print(f"Demoted {d['agent']} from Level {d['from']} to Level {d['level']}: {d['reason']}")
+    print(quality.render(quality.scorecard(ws, at, args.days), args.days))
+    return 0
+
+
+def cmd_promote(args) -> int:
+    ws = _ws(args)
+    ActivityLog(ws.log_path, ws.client_id).verify()
+    at = parse_ts(args.at) if args.at else datetime.now(timezone.utc)
+    if args.check:
+        missing = autonomy.promotion_check(ws, args.agent, at, args.playbook, args.budget_cap, args.client_approval)
+        print(f"{args.agent} is at Level {autonomy.level(ws, args.agent)}. "
+              + ("Ready to promote with your sign-off." if not missing else "Not yet: " + "; ".join(missing)))
+        return 0
+    r = autonomy.promote(ws, args.agent, args.by, args.reason or "", at, args.playbook, args.budget_cap,
+                         args.client_approval)
+    print(f"Promoted {r['agent']} from Level {r['from']} to Level {r['level']}; noted in its change log.")
+    return 0
+
+
+def cmd_demote(args) -> int:
+    ws = _ws(args)
+    ActivityLog(ws.log_path, ws.client_id).verify()
+    at = parse_ts(args.at) if args.at else datetime.now(timezone.utc)
+    if args.kind == "operator":
+        r = autonomy.demote(ws, args.agent, args.by, args.note or "", at)
+    else:
+        r = autonomy.report_serious_error(ws, args.agent, args.kind, args.note or "", args.by, at)
+    print(f"{r['agent']}: Level {r['from']} → Level {r['level']}. {r['reason']}")
+    return 0
+
+
 def cmd_run_due(args) -> int:
     ws = _ws(args)
     ActivityLog(ws.log_path, ws.client_id).verify()
@@ -530,7 +567,9 @@ def cmd_status(args) -> int:
         flag = ctl["agents"].get(a.name)
         spec = "spec ok" if ws.path(a.spec).exists() else "NO SPEC"
         state = f"PAUSED ({flag['reason']})" if flag else "active"
-        print(f"  {a.name}: engine={a.engine} level={a.level} cap={a.max_actions_per_day}/day {spec} {state}")
+        lvl = autonomy.level(ws, a.name)
+        note = f" (profile says {a.level}; above 1 needs `mefw promote`)" if a.level > lvl and not autonomy.record(ws, a.name) else ""
+        print(f"  {a.name}: engine={a.engine} level={lvl}{note} cap={a.max_actions_per_day}/day {spec} {state}")
     print(f"Ledger: {counts['leads']} leads, {counts['events']} events")
     print(f"Activity log: {log_state}")
     return 0
@@ -685,6 +724,31 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--reason", default="operator request", required=(name == "pause"))
         sp.add_argument("--by", default=OPERATOR)
         sp.set_defaults(fn=fn)
+
+    sp = with_client(sub.add_parser("quality", help="per-agent quality numbers; enforces the error budget"))
+    sp.add_argument("--days", type=int, default=28)
+    sp.add_argument("--as-of")
+    sp.set_defaults(fn=cmd_quality)
+
+    sp = with_client(sub.add_parser("promote", help="raise an agent one level, with your sign-off (Section 11.2)"))
+    sp.add_argument("agent")
+    sp.add_argument("--check", action="store_true", help="only say whether it meets the bar")
+    sp.add_argument("--reason", help="why; goes in the agent's change log")
+    sp.add_argument("--playbook", help="Level 2: the written playbook, a path in the workspace")
+    sp.add_argument("--budget-cap", type=float, help="Level 3: the spending cap")
+    sp.add_argument("--client-approval", help="Level 3: where the client approved the spend")
+    sp.add_argument("--by", default=OPERATOR)
+    sp.add_argument("--at")
+    sp.set_defaults(fn=cmd_promote)
+
+    sp = with_client(sub.add_parser("demote", help="record a serious error and drop the agent a level (Section 11.3)"))
+    sp.add_argument("agent")
+    sp.add_argument("--kind", required=True, choices=[*autonomy.SERIOUS_ERRORS, "operator"],
+                    help="the serious error, or 'operator' to step it down for another reason")
+    sp.add_argument("--note", help="what happened")
+    sp.add_argument("--by", default=OPERATOR)
+    sp.add_argument("--at")
+    sp.set_defaults(fn=cmd_demote)
 
     sp = with_client(sub.add_parser("run-due", help="run every scheduled job that is due (call from cron)"))
     sp.add_argument("--at", help="pretend it is this time (for testing)")

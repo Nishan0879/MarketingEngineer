@@ -56,11 +56,14 @@ Receipts, Compliance, Approval (checked in code); Voice, Customer words, Right b
 ## Write-back
 Drafts; rejections go to `rules/corrections.md`; `mefw drafts sent` records the first outbound touch on the lead; one activity log entry per draft.
 
+## Error budget
+`max_correction_rate` in `profile/mefw.toml` (default 25%). Above it, at Level 2 or higher, the agent drops back to Level 1 until reviewed (Section 11.3).
+
 ## Limits
 `max_actions_per_day` in `profile/mefw.toml` (default 50); `--max` per run (default 10); one first response per lead.
 
 ## Promotion
-Section 9.3 allows Level 2 for first responses using approved facts once accuracy is proven. By the Section 11.2 default that is 20 approvals in a row without edits over at least 2 weeks, a written playbook of exactly what it may send, and operator sign-off in this change log. Drafts with an `answer needed` line can never be sent unattended. `mefw drafts record` shows progress.
+Section 9.3 allows Level 2 for first responses using approved facts once accuracy is proven. By the Section 11.2 default that is 20 approvals in a row without edits over at least 2 weeks, a written playbook of exactly what it may send, and operator sign-off in this change log. Drafts with an `answer needed` line can never be sent unattended. `mefw drafts record` shows progress; `mefw promote <agent> --playbook <file> --reason ...` records the promotion here once the bar is met.
 
 ## Change log
 - {today}: created at Level 1
