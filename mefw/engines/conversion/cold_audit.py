@@ -16,8 +16,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from ...core.evidence import confidence, rate as _rate, refs_md as _refs_from
 from ...core.ledger import Ledger, LeadState, iso
 from ...core.workspace import Workspace
+
+__all__ = ["run_audit", "render_markdown", "write_outputs", "confidence", "classify"]
 
 DEFAULTS = {
     "lookback_days": 180,
@@ -61,8 +64,9 @@ class Settings:
     max_candidates: int
 
     @classmethod
-    def from_config(cls, conversion_cfg: dict) -> "Settings":
-        merged = {**DEFAULTS, **conversion_cfg.get("cold_audit", {})}
+    def from_config(cls, conversion_cfg: dict, overrides: dict | None = None) -> "Settings":
+        """Defaults, then the client's [conversion.cold_audit], then the segment's own."""
+        merged = {**DEFAULTS, **conversion_cfg.get("cold_audit", {}), **(overrides or {})}
         return cls(**{k: merged[k] for k in DEFAULTS})
 
 
@@ -108,38 +112,43 @@ def _bucket_labels(edges: list[int]) -> list[str]:
     return labels
 
 
-def confidence(sizes: list[int], min_size: int) -> tuple[str, str]:
-    """Directional confidence for a comparison between groups (Section 13.2).
-
-    Groups under min_size are left out of the comparison; at least two must remain.
-    """
-    usable = [n for n in sizes if n >= min_size]
-    if len(usable) < 2:
-        return "not enough evidence", f"fewer than two groups have {min_size}+ leads"
-    smallest = min(usable)
-    left_out = len(sizes) - len(usable)
-    note = f"; {left_out} group(s) under {min_size} leads left out" if left_out else ""
-    if smallest < 3 * min_size:
-        return "low", f"smallest compared group has {smallest} leads; observational, not a controlled test{note}"
-    return "medium", f"every compared group has at least {smallest} leads; observational, so confounders may apply{note}"
-
-
-def _rate(num: int, den: int) -> str:
-    return f"{num / den:.0%}" if den else "n/a"
-
-
 def run_audit(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
-    cfg = Settings.from_config(ws.config.conversion)
-    all_states = ledger.states(as_of)
+    """Audit each segment on its own terms, then pick the overall headline."""
+    by_segment = defaultdict(list)
+    for s in ledger.states(as_of):
+        by_segment[ws.segment_for(s.segment)].append(s)
+    names = ws.segment_names() + [n for n in by_segment if n not in ws.segment_names()]
+    segments = {}
+    for name in names:
+        seg = ws.config.segments.get(name)
+        cfg = Settings.from_config(ws.config.conversion, seg.cold_audit if seg else None)
+        seg_data = analyze(by_segment.get(name, []), cfg, ws.cycle_days(name), as_of)
+        seg_data["label"] = ws.segment_label(name)
+        segments[name] = seg_data
+
+    data = {"client": ws.client_id, "as_of": iso(as_of), "segments": segments}
+    best = max(
+        (n for n, d in segments.items() if d.get("headline_refs")),
+        key=lambda n: len(segments[n]["headline_refs"]), default=None,
+    )
+    if best is None:
+        data["headline"] = "Not enough evidence for a headline in any segment."
+    elif len(segments) == 1:
+        data["headline"], data["headline_refs"] = segments[best]["headline"], segments[best]["headline_refs"]
+    else:
+        data["headline"] = f"{segments[best]['label']}: {segments[best]['headline']}"
+        data["headline_refs"] = segments[best]["headline_refs"]
+    return data
+
+
+def analyze(states: list[LeadState], cfg: Settings, cycle_days: int, as_of: datetime) -> dict:
     start = as_of - timedelta(days=cfg.lookback_days)
-    pop = [s for s in all_states if s.inquired_at >= start]
+    pop = [s for s in states if s.inquired_at >= start]
     judged_cut = as_of - timedelta(days=cfg.cold_after_days)
     judged = [s for s in pop if s.inquired_at <= judged_cut]  # old enough to have gone cold
 
     data = {
-        "client": ws.client_id,
-        "as_of": iso(as_of),
-        "settings": asdict(cfg),
+        "settings": {**asdict(cfg), "cycle_days": cycle_days},
         "population": len(pop),
         "judged": len(judged),
         "gaps": [],
@@ -161,13 +170,13 @@ def run_audit(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
     }
 
     # Outcomes through Commit (Section 7)
-    due = [s for s in pop if s.inquired_at <= as_of - timedelta(days=ws.config.cycle_days)]
+    due = [s for s in pop if s.inquired_at <= as_of - timedelta(days=cycle_days)]
     with_outcome = [s for s in due if s.outcome]
     coverage = len(with_outcome) / len(due) if due else None
     data["outcome_coverage"] = {"due": len(due), "with_outcome": len(with_outcome), "rate": coverage}
     if coverage is not None and coverage < 0.8:
         data["gaps"].append(
-            f"Only {coverage:.0%} of leads older than the {ws.config.cycle_days}-day cycle have a won/lost "
+            f"Only {coverage:.0%} of leads older than the {cycle_days}-day cycle have a won/lost "
             "outcome. Open leads may really be lost; ask the client to close them out with reasons."
         )
     if not any(s.touches_out for s in pop):
@@ -274,11 +283,45 @@ def render_markdown(data: dict, source_note: str) -> str:
         w("")
         w(f"Receipts: {_refs_from(data['headline_refs'])}")
     w("")
-    if "funnel" not in data:
+    segs = data["segments"]
+    if len(segs) == 1:
+        (only,) = segs.values()
+        if only.get("headline") != data["headline"]:
+            w(only["headline"])
+            w("")
+        _render_segment(L, only, "##")
         return "\n".join(L) + "\n"
 
+    w("## By segment")
+    w("")
+    w("Each segment is judged on its own sales cycle and thresholds.")
+    w("")
+    w("| Segment | Inquiries | Reached meeting | Won | Went cold | Ours to fix |")
+    w("|---|---|---|---|---|---|")
+    for d in segs.values():
+        if "funnel" not in d:
+            w(f"| {d['label']} | 0 | | | | |")
+            continue
+        c = d["funnel"]["counts"]
+        w(f"| {d['label']} | {d['population']} | {_rate(c['meet'], c['inquire'])} | "
+          f"{_rate(d['funnel']['won'], d['population'])} | {d['cold']['count']} | {d['cold']['fixable']} |")
+    w("")
+    for d in segs.values():
+        w(f"## {d['label']}")
+        w("")
+        w(d["headline"])
+        w("")
+        _render_segment(L, d, "###")
+    return "\n".join(L) + "\n"
+
+
+def _render_segment(L: list[str], data: dict, h: str) -> None:
+    w = L.append
+    if "funnel" not in data:
+        return
+
     s = data["settings"]
-    w("## Baseline")
+    w(h + " Baseline")
     w("")
     f = data["funnel"]
     c = f["counts"]
@@ -300,7 +343,7 @@ def render_markdown(data: dict, source_note: str) -> str:
     w("")
 
     cold = data["cold"]
-    w("## Where inquiries went cold")
+    w(h + " Where inquiries went cold")
     w("")
     w(f"A lead counts as cold when it is open, short of commitment, and nothing has happened for "
       f"{s['cold_after_days']}+ days. **{cold['count']}** leads are cold "
@@ -322,7 +365,7 @@ def render_markdown(data: dict, source_note: str) -> str:
         w("")
 
     sv = data["speed_vs_outcome"]
-    w("## Speed to first response vs. outcome")
+    w(h + " Speed to first response vs. outcome")
     w("")
     w("| First response | Leads | Reached meeting | Won |")
     w("|---|---|---|---|")
@@ -335,7 +378,7 @@ def render_markdown(data: dict, source_note: str) -> str:
     w("")
 
     if data["by_channel"]:
-        w("## By channel")
+        w(h + " By channel")
         w("")
         w("| Channel | Leads | Reached meeting | Won | Went cold |")
         w("|---|---|---|---|---|")
@@ -344,7 +387,7 @@ def render_markdown(data: dict, source_note: str) -> str:
         w("")
 
     if data["lost_reasons"]:
-        w("## Lost reasons")
+        w(h + " Lost reasons")
         w("")
         w("| Reason | Leads | Receipts |")
         w("|---|---|---|")
@@ -353,7 +396,7 @@ def render_markdown(data: dict, source_note: str) -> str:
         w("")
 
     if data["candidates"]:
-        w("## Leads worth a second look")
+        w(h + " Leads worth a second look")
         w("")
         w("Cold for reasons on our side, highest value first. For a human to review in the lead-tracking tool; "
           "no message has been drafted or sent.")
@@ -365,7 +408,7 @@ def render_markdown(data: dict, source_note: str) -> str:
             w(f"| `{cnd['ref']}` | {LEAKS[cnd['reason']]} | {cnd['stage']} | {cnd['channel'] or ''} | {val} | {cnd['days_quiet']} days |")
         w("")
 
-    w("## Proposed next tests")
+    w(h + " Proposed next tests")
     w("")
     w("Hypotheses for the operator to decide on. None is approved or running.")
     w("")
@@ -380,7 +423,7 @@ def render_markdown(data: dict, source_note: str) -> str:
         w("None: no cold leads in this window.")
     w("")
 
-    w("## Data gaps")
+    w(h + " Data gaps")
     w("")
     if data["gaps"]:
         for g in data["gaps"]:
@@ -388,16 +431,10 @@ def render_markdown(data: dict, source_note: str) -> str:
     else:
         w("- None found.")
     w("")
-    w("## Settings")
+    w(h + " Settings")
     w("")
     w(", ".join(f"`{k}` = {v}" for k, v in s.items()))
     w("")
-    return "\n".join(L)
-
-
-def _refs_from(refs: list[str], limit: int = 8) -> str:
-    out = ", ".join(f"`{r}`" for r in refs[:limit])
-    return out + (f" and {len(refs) - limit} more" if len(refs) > limit else "")
 
 
 def _human_minutes(m: float) -> str:

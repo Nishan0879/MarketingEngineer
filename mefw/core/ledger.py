@@ -21,6 +21,10 @@ from .pii import scrub
 from .workspace import FUNNEL
 
 EVENT_KINDS = ("inquired", "touch_in", "touch_out", "stage", "outcome")
+# Kinds of customer signal (Section 8.2). lost_reason is derived from outcomes, not imported.
+SIGNAL_KINDS = ("inquiry_message", "call_note", "tour_note", "lost_note", "review",
+                "ticket", "survey", "social", "other")
+MAX_SIGNAL_CHARS = 2000
 OUTCOMES = ("won", "lost", "reopened")
 
 SCHEMA = """
@@ -47,6 +51,22 @@ CREATE TABLE IF NOT EXISTS lead_events (
     recorded_at TEXT NOT NULL,
     UNIQUE (lead_id, kind, at, stage, value)
 );
+CREATE TABLE IF NOT EXISTS signals (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    source      TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    ref         TEXT NOT NULL,
+    at          TEXT NOT NULL,
+    segment     TEXT,
+    lead_id     TEXT,
+    text        TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    UNIQUE (source, ref)
+);
+CREATE TRIGGER IF NOT EXISTS signals_no_update BEFORE UPDATE ON signals
+BEGIN SELECT RAISE(ABORT, 'signals is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS signals_no_delete BEFORE DELETE ON signals
+BEGIN SELECT RAISE(ABORT, 'signals is append-only'); END;
 CREATE TABLE IF NOT EXISTS action_keys (
     key         TEXT PRIMARY KEY,
     agent       TEXT NOT NULL,
@@ -232,6 +252,45 @@ class Ledger:
         for lead_id, s in leads.items():
             s.touches_out = max(s.touches_out, reported[lead_id])
         return [s for s in leads.values() if s.inquired_at]
+
+    # Customer signal (Section 8.2): notes, messages and reviews, scrubbed of contact details
+
+    def add_signal(self, source: str, kind: str, ref: str, at: datetime, text: str,
+                   segment: str | None = None, lead_ref: str | None = None) -> bool:
+        """Store one piece of signal. Returns False if this source ref was already stored."""
+        if kind not in SIGNAL_KINDS:
+            raise ValueError(f"Signal kind must be one of {SIGNAL_KINDS}, not {kind!r}")
+        clean = scrub(text or "")[:MAX_SIGNAL_CHARS]
+        if not clean:
+            return False
+        lead_id = self.find_lead(lead_ref) if lead_ref else None
+        cur = self.db.execute(
+            """INSERT OR IGNORE INTO signals (source, kind, ref, at, segment, lead_id, text, recorded_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (source, kind, ref, iso(at), segment, lead_id, clean, now_iso()),
+        )
+        return cur.rowcount == 1
+
+    def signals(self, as_of: datetime) -> list[dict]:
+        """Stored signals up to as_of, plus lost reasons from recorded outcomes."""
+        rows = self.db.execute(
+            """SELECT s.kind, s.source || ':' || s.ref, s.at, COALESCE(s.segment, l.segment), s.lead_id, s.text
+               FROM signals s LEFT JOIN leads l ON l.lead_id = s.lead_id
+               WHERE s.at <= ? ORDER BY s.at""",
+            (iso(as_of),),
+        ).fetchall()
+        out = [dict(kind=k, ref=r, at=parse_ts(a), segment=seg, lead_id=lid, text=t)
+               for k, r, a, seg, lid, t in rows]
+        for lead_id, ref, at, seg, detail in self.db.execute(
+            """SELECT e.lead_id, l.ref, e.at, l.segment, e.detail FROM lead_events e
+               JOIN leads l ON l.lead_id = e.lead_id
+               WHERE e.kind = 'outcome' AND e.value = 'lost' AND e.at <= ?
+                 AND e.detail IS NOT NULL AND e.detail != 'not recorded'""",
+            (iso(as_of),),
+        ):
+            out.append(dict(kind="lost_reason", ref=f"{ref} (lost reason)", at=parse_ts(at),
+                            segment=seg, lead_id=lead_id, text=detail))
+        return out
 
     # Action keys, used by the runner for dedupe
 

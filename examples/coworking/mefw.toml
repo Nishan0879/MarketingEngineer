@@ -1,0 +1,174 @@
+# Machine-readable settings for this client. The human-readable profile is
+# business-profile.md next to this file; keep the two in step.
+
+[client]
+id = "{client_id}"
+# Example profile: a coworking space that also leases private offices.
+timezone = "UTC"
+
+[funnel]
+# Typical days from inquiry to commitment. Leads older than this should have a
+# won/lost outcome reported (Section 7).
+cycle_days = 30
+
+# Map the client's own stage names (as they appear in their lead-tracking
+# tool) onto the universal funnel. Matching ignores case.
+[funnel.stages]
+inquire = ["New", "New Inquiry", "Lead"]
+qualify = ["Qualified", "Contacted - Qualified"]
+meet    = ["Tour Booked", "Tour Completed", "Consult", "Demo", "Meeting"]
+commit  = ["Signed", "Won", "Closed Won"]
+retain  = ["Renewed"]
+
+# Optional: segments with their own funnel (Section 7), e.g. members vs. office
+# tenants. A lead joins the segment whose `match` list contains its segment
+# value from the lead-tracking tool. Each segment can set its own cycle length,
+# extra stage names and audit thresholds. Without segments, all leads are one group.
+#
+[segments.members]
+label = "Members (B2C)"
+match = ["Freelancer", "Remote employee", "Day pass"]
+cycle_days = 21
+#
+[segments.offices]
+label = "Office leases (B2B)"
+match = ["Office - small team", "Office - company"]
+cycle_days = 90
+[segments.offices.stages]
+meet = ["Site Visit", "Proposal Sent", "Negotiation"]
+commit = ["Lease Signed"]
+[segments.offices.cold_audit]
+cold_after_days = 30
+min_followups = 5
+
+
+# Agents allowed to run for this client. An agent with no spec file does not run.
+[agents.cold-inquiry-auditor]
+engine = "conversion"
+level = 0                     # 0 observe, 1 draft, 2 act within a playbook, 3 act with a budget
+spec = "agents/cold-inquiry-auditor.md"
+max_actions_per_day = 5
+max_consecutive_errors = 2    # after this many failures in a row the agent is paused
+
+[agents.customer-truth-analyst]
+engine = "core"
+level = 0
+spec = "agents/customer-truth-analyst.md"
+max_actions_per_day = 5
+max_consecutive_errors = 2
+
+[conversion.cold_audit]
+lookback_days = 180
+cold_after_days = 14          # no activity for this long = cold
+slow_response_hours = 24      # a first response slower than this counts as slow
+min_followups = 3             # fewer outbound touches than this = gave up early
+min_group_size = 10           # below this, comparisons say "not enough evidence"
+response_buckets_minutes = [5, 60, 1440]
+max_candidates = 25
+
+# Customer truth (Section 8.2). Themes are what buyers talk about, found by
+# keyword for now. Replace these generic ones with the client's own language.
+[customer_truth]
+period_days = 30          # "this period"
+baseline_periods = 3      # compared against the average of this many periods before
+min_mentions = 3          # fewer mentions than this is not a pattern
+rising_factor = 1.5       # this period vs. baseline average to count as rising
+min_group_size = 5        # won vs. lost comparison needs this many leads per side
+quote_max_chars = 160
+
+[customer_truth.themes.price]
+label = "Price and budget"
+keywords = ["price", "pricing", "expensive", "cost", "budget", "afford", "cheaper", "too much"]
+
+[customer_truth.themes.parking]
+label = "Parking"
+keywords = ["parking", "garage", "park"]
+
+[customer_truth.themes.flexibility]
+label = "Flexible terms"
+keywords = ["flexible", "month-to-month", "month to month", "no long-term", "lease term", "pause"]
+
+[customer_truth.themes.meeting_rooms]
+label = "Meeting rooms"
+keywords = ["meeting room", "conference room", "client calls"]
+
+[customer_truth.themes.quiet]
+label = "Quiet space for calls"
+keywords = ["quiet", "noise", "phone booth", "private calls"]
+
+[customer_truth.themes.community]
+label = "Community and events"
+keywords = ["community", "events", "networking", "other members"]
+
+[customer_truth.themes.growth]
+label = "Room to grow"
+keywords = ["growing", "expand", "bigger office", "too small for growth"]
+
+[customer_truth.themes.internet]
+label = "Internet"
+keywords = ["internet", "wifi", "upload"]
+
+[customer_truth.themes.location]
+label = "Location and commute"
+keywords = ["location", "too far", "commute"]
+
+[customer_truth.themes.competitor]
+label = "Chose an alternative"
+keywords = ["competitor", "went with", "elsewhere", "working from home"]
+
+# CSV export of notes, messages or reviews. Map the columns your export has;
+# `text` is scrubbed of emails and phone numbers on import.
+[adapters.signals_csv]
+source = "notes"
+
+[adapters.signals_csv.columns]
+kind     = "Type"
+ref      = "Note ID"
+at       = "Date"
+text     = "Text"
+lead_ref = "Lead ID"
+segment  = "Segment"
+
+[adapters.signals_csv.kind_values]
+call_note       = ["call", "call note", "phone call"]
+tour_note       = ["tour", "tour note", "site visit"]
+inquiry_message = ["inquiry", "form", "message", "dm", "email"]
+lost_note       = ["lost", "lost note"]
+review          = ["review", "google review"]
+
+# CSV export from the client's lead-tracking tool. Map only the columns listed
+# below. Never map names, emails, phone numbers or other personal data: the
+# importer refuses them, and they stay in the client's own tool.
+[adapters.csv]
+source = "crm"
+
+[adapters.csv.columns]
+ref               = "Lead ID"
+inquired_at       = "Created At"
+channel           = "Source"
+segment           = "Segment"
+value             = "Value"
+first_response_at = "First Response At"
+last_outbound_at  = "Last Outbound At"
+last_inbound_at   = "Last Inbound At"
+outbound_count    = "Outbound Count"
+stage             = "Stage"
+outcome           = "Status"
+outcome_at        = "Closed At"
+lost_reason       = "Lost Reason"
+
+# Columns holding the date a stage was reached, keyed by the client's stage name.
+[adapters.csv.stage_dates]
+"Qualified"   = "Qualified At"
+"Tour Booked" = "Tour Booked At"
+
+[adapters.csv.outcome_values]
+won  = ["Won", "Signed", "Closed Won"]
+lost = ["Lost", "Closed Lost", "Dead"]
+
+# Optional second export with one row per message or call.
+[adapters.csv.activities]
+ref = "Lead ID"
+at = "Timestamp"
+direction = "Direction"
+out_values = ["out", "outbound", "sent"]

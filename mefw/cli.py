@@ -12,7 +12,9 @@ from pathlib import Path
 
 from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
+from .adapters.signals_csv import import_signals
 from .core.activity_log import ActivityLog
+from .core import customer_truth, truth_report
 from .core.control import Control
 from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
@@ -69,6 +71,58 @@ def cmd_import_csv(args) -> int:
         print(f"  warning: {w}")
     if len(rep.warnings) > 10:
         print(f"  ...and {len(rep.warnings) - 10} more warnings")
+    return 0
+
+
+def cmd_import_signals(args) -> int:
+    ws = _ws(args)
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    ledger = Ledger(ws.db_path, ws.client_id)
+    cfg = ws.config.signals_csv
+    try:
+        rep = import_signals(ledger, Path(args.file), cfg, default_kind=args.kind)
+    except Exception as e:
+        log.append(OPERATOR, "import_signals", "failed", {"file": Path(args.file).name}, {"reason": str(e)})
+        raise
+    finally:
+        ledger.close()
+    log.append(OPERATOR, "import_signals", "ok", {"file": Path(args.file).name, "kind": args.kind},
+               {"summary": rep.summary(), "skipped": rep.skipped[:20]})
+    print(rep.summary())
+    return 0
+
+
+def cmd_truth(args) -> int:
+    ws = _ws(args)
+    as_of = parse_ts(args.as_of) if args.as_of else datetime.now(timezone.utc)
+    runner = Runner(ws)
+    try:
+        db = runner.ledger.db
+        n_signals = db.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        last = db.execute("SELECT MAX(recorded_at) FROM signals").fetchone()[0]
+        n_events = db.execute("SELECT COUNT(*) FROM lead_events").fetchone()[0]
+        key = f"customer-truth:{as_of.isoformat()}:{n_signals}:{n_events}:{last}"
+        note = f"{n_signals} imported signals plus recorded lost reasons (last import {last or 'never'})"
+
+        def job() -> dict:
+            data = customer_truth.run_truth(ws, runner.ledger, as_of)
+            return {"summary": data["headline"], **truth_report.write_outputs(ws, data, note)}
+
+        res = runner.run("customer-truth-analyst", "customer_truth_update", "observe", key, job,
+                         {"as_of": as_of.isoformat()})
+    except GuardrailError as e:
+        print(f"Refused: {e}", file=sys.stderr)
+        return 2
+    finally:
+        runner.close()
+    if res.status == "duplicate":
+        print("Already ran for this data and date; nothing new to do.")
+    print(res.output.get("summary", ""))
+    if res.output.get("report"):
+        print(f"Report: {ws.root / res.output['report']}")
+    for p in res.output.get("insights", []):
+        print(f"Insight: {p}")
     return 0
 
 
@@ -212,6 +266,15 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("leads")
     sp.add_argument("--activities", help="optional CSV with one row per message or call")
     sp.set_defaults(fn=cmd_import_csv)
+
+    sp = with_client(sub.add_parser("import-signals", help="import notes, messages or reviews from a CSV"))
+    sp.add_argument("file")
+    sp.add_argument("--kind", help="signal kind for every row, if the file has no kind column")
+    sp.set_defaults(fn=cmd_import_signals)
+
+    sp = with_client(sub.add_parser("truth", help="update the customer truth file"))
+    sp.add_argument("--as-of")
+    sp.set_defaults(fn=cmd_truth)
 
     sp = with_client(sub.add_parser("outcome", help="record a won/lost outcome for a lead"))
     sp.add_argument("ref")

@@ -60,7 +60,7 @@ class ColdAuditTests(unittest.TestCase):
             row("won", ts(40), first=ts(40, 0.2), n_out=1, status="Won", closed=ts(20)),
             row("lost", ts(40), status="Lost", closed=ts(20), reason="Price"),
         ])
-        data = cold_audit.run_audit(self.ws, self.ledger, AS_OF)
+        data = cold_audit.run_audit(self.ws, self.ledger, AS_OF)["segments"]["all"]
         by = {k: v for k, v in data["cold"]["by_leak"].items() if v}
         self.assertEqual(by, {
             "never_responded": ["never"], "ball_in_our_court": ["waiting"],

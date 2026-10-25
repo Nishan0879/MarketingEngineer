@@ -63,17 +63,17 @@ def import_records(ws: Workspace, ledger: Ledger, source: LeadSource) -> ImportR
             rep.new_events += add("touch_in" if direction == "in" else "touch_out", at)
 
         for client_stage, at in r.stage_dates.items():
-            canonical = ws.canonical_stage(client_stage)
+            canonical = ws.canonical_stage(client_stage, r.segment)
             if canonical is None:
                 rep.unknown_stages[client_stage] = rep.unknown_stages.get(client_stage, 0) + 1
                 continue
             rep.new_events += add("stage", at, stage=canonical)
 
         if r.current_stage:
-            canonical = ws.canonical_stage(r.current_stage)
+            canonical = ws.canonical_stage(r.current_stage, r.segment)
             if canonical is None:
                 rep.unknown_stages[r.current_stage] = rep.unknown_stages.get(r.current_stage, 0) + 1
-            elif canonical not in {ws.canonical_stage(s) for s in r.stage_dates}:
+            elif canonical not in {ws.canonical_stage(s, r.segment) for s in r.stage_dates}:
                 # No date for the current stage: use the latest activity we know of, and say so.
                 known = [r.inquired_at, *(t for t, _ in r.touches), *r.stage_dates.values()]
                 rep.new_events += add("stage", max(known), stage=canonical,
