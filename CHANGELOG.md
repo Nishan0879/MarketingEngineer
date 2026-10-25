@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0 — 2026-10-25
+- Search visibility engine (Section 9.5), set up in `engines/search/playbook.toml`.
+- `mefw search import` keeps each Search Console export as a snapshot for its period. Snapshots are never overwritten, and queries are scrubbed of contact details.
+- New Level 0 agent `search-analyst` and `mefw search analyze`. It writes a weekly report with:
+  - non-brand queries ranked by buyer intent × relevance × ranking distance × volume, each with "improve this page" or "new page"
+  - topics buyers raise in their own words that no page answers
+  - listings checked against approved facts, and listings not checked lately
+  - AI assistant mentions and citations, and the checks due
+  - clicks, inquiries from search channels and how published drafts' queries moved
+- New Level 1 agent `search-page-drafter` and `mefw search drafts`. It drafts one FAQ entry or page change per topic, answered only from approved facts tagged with the topic. A topic with no fact is left blocking for the operator.
+- `mefw search approve` adds three checks to the usual draft checks: keyword stuffing, review gating, and quotations without permission. `mefw search published` records where a draft went live.
+- `mefw search ai-record` logs the operator's monthly AI assistant checks, append-only.
+- The cockpit lists search drafts to review or publish, listings to fix and AI checks due. The scheduler runs both new agents weekly after the content brief writer.
+- Examples: a coworking search playbook, a sample Search Console export, a sample report and a sample draft. The example facts gain `coworking` and `private_offices` topics.
+
 ## 0.9.0 — 2026-10-25
 - Content engine (Section 9.1). New Level 1 agent `content-brief-writer` and `mefw content briefs`. It writes a brief per confirmed insight once it has enough evidence (`[content] min_evidence`, default 5), and refreshes it at most every `refresh_days` (default 60). A brief has:
   - what customers said, in their words, with contact details scrubbed

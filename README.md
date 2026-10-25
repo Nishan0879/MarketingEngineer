@@ -14,6 +14,7 @@ python -m mefw init ../client-demo --client-id demo      # new client workspace 
 sed 's/{client_id}/demo/' examples/coworking/mefw.toml > ../client-demo/profile/mefw.toml   # example profile
 cp examples/coworking/approved-facts.toml ../client-demo/profile/
 cp examples/coworking/playbook.toml ../client-demo/engines/conversion/
+cp examples/coworking/search-playbook.toml ../client-demo/engines/search/playbook.toml
 python -m mefw import-csv --client ../client-demo examples/sample_leads.csv --activities examples/sample_activities.csv
 python -m mefw import-signals --client ../client-demo examples/sample_signals.csv
 python -m mefw audit-cold --client ../client-demo --as-of 2026-10-25T12:00
@@ -24,11 +25,14 @@ python -m mefw experiment approve --client ../client-demo EXP-demo-001 --at 2026
 python -m mefw experiment start --client ../client-demo EXP-demo-001 --at 2026-08-22T09:00
 python -m mefw experiment measure --client ../client-demo --at 2026-10-25T12:00
 python -m mefw drafts make --client ../client-demo --at 2026-10-25T12:00
+python -m mefw search import --client ../client-demo examples/sample_search_queries.csv --period-end 2026-10-24
+python -m mefw search analyze --client ../client-demo --at 2026-10-25T12:00
+python -m mefw search drafts --client ../client-demo --at 2026-10-25T12:00
 python -m mefw cockpit --client ../client-demo --as-of 2026-10-25T12:00
 python -m mefw status --client ../client-demo
 ```
 
-What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
+What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md), [a content brief](examples/sample-content-brief.md), [a search report](examples/sample-search-report.md), [a search draft](examples/sample-search-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
 
 For a real client, edit `profile/mefw.toml` in their workspace: segments, stage names, themes in their customers' words, and the column names of their exports. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
 
@@ -119,6 +123,23 @@ Briefs go to `engines/content/briefs/C-YYYYMMDD-<insight>.md`. Write in the chan
 You publish it yourself, then record it with `mefw content published <id> --channel linkedin --url <link>`. Map your lead tool's campaign or UTM column (`campaign = "UTM Campaign"` under `[adapters.csv.columns]`). `mefw content results` then counts the inquiries that came in with each brief's tag since it was published, and how many reached a meeting or were won, against the rest of the segment. The cockpit asks you to write briefs that are waiting and to publish approved ones.
 
 Schedule it with `content-brief-writer = "weekly mon 06:40"`. Settings live under `[content]` in the profile.
+
+## Search visibility (search engine, Levels 0 and 1)
+
+The search visibility engine (Section 9.5) makes the business easy to find and easy to cite in search, local search and AI assistants. It works from `engines/search/playbook.toml`, which lists the buyer-intent words, the pages that exist and the topics each covers, the listings, and the questions to put to AI assistants ([example](examples/coworking/search-playbook.toml)). Topics are the first-response topics plus any the playbook adds.
+
+1. **Import search data.** Export the Queries table from Search Console for the last 28 days, then run `mefw search import queries.csv --period-end 2026-10-24` (add `--pages pages.csv` for the Pages table). Each period becomes a snapshot that's never overwritten. Queries are scrubbed of contact details.
+2. **Weekly report.** `mefw search analyze` (agent `search-analyst`, Level 0) writes `engines/search/reports/YYYY-MM-DD.md` ([sample](examples/sample-search-report.md)) with:
+   - **Opportunities:** non-brand queries ranked by buyer intent × relevance × ranking distance × volume. Each gets a next step: improve the page that covers its topic, or write a new one.
+   - **Questions buyers ask that no page answers:** topics from inquiries, call and tour notes, reviews and other signals in the buyer's own words, over the last 90 days.
+   - **Listings:** each listing's fields against the approved fact they should match, and listings not checked for `listing_check_days`.
+   - **AI assistants:** how often each assistant mentioned or cited the business, and the checks due this month.
+   - **Results:** clicks over recent snapshots, inquiries from `search_channels` and how many reached a meeting, and how published drafts' queries moved.
+3. **Drafts.** `mefw search drafts` (agent `search-page-drafter`, Level 1) writes `engines/search/drafts/S-YYYYMMDD-<topic>.md` ([sample](examples/sample-search-draft.md)), one per topic, at most every `refresh_days`. Each draft says where the change goes and lists the queries and the buyers' words. It has an FAQ entry answered only from approved facts tagged with the topic. A topic with no such fact gets `{answer needed: <topic>}`, which blocks approval until you write it.
+4. **Approve and publish.** `mefw search approve <id>` runs the draft checks (claims, banned language, sensitive data, required text). It also blocks keyword stuffing (a search phrase used more than `max_query_repeats` times), review gating (asking only happy customers for reviews) and quotations that look like reviews, unless you pass `--quote-permission`. You put it on the site, then run `mefw search published <id> --url <link>`.
+5. **AI assistant checks.** Ask each assistant the prompts in `[search.ai.prompts]` by hand once a month. Record each answer with `mefw search ai-record --assistant ChatGPT --prompt best_coworking --mentioned yes --cited <url>`. Nothing here calls a search engine or an assistant.
+
+The cockpit asks you to review search drafts, publish approved ones, fix listings that disagree with approved facts, and run the AI checks that are due.
 
 ## Running on a schedule
 
@@ -212,6 +233,7 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `audit-cold [--as-of]` | Run the cold-inquiry audit (Level 0, contacts nobody) |
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |
 | `content briefs \| list \| approve \| published \| results` | Content briefs from confirmed insights; approving and recording what's published are the operator's |
+| `search import \| analyze \| drafts \| list \| approve \| published \| ai-record` | Search visibility: search data, weekly report, FAQ drafts, AI assistant checks; approving, publishing and AI checks are the operator's |
 | `report make \| approve` | Draft the monthly client report; approve it to get the shareable HTML |
 | `quality` | Per-agent quality numbers; enforces the error budget |
 | `promote <agent>` / `demote <agent>` | Change an agent's level with your sign-off, or after a serious error |
@@ -230,6 +252,7 @@ mefw/core/          runner, kill switch, activity log, ledger, PII guard, worksp
 mefw/adapters/      lead-source interface, lead CSV adapter, signals CSV adapter
 mefw/engines/conversion/   cold-inquiry audit, first-response and re-engagement drafts, the draft queue
 mefw/engines/content/      content briefs, asset checks, publish log, results
+mefw/engines/search/       search snapshots, opportunity ranking, listings, AI checks, FAQ drafts
 mefw/templates/client/   what `init` copies into a new client workspace
 templates/          the spec's templates (agent spec, experiment brief, ...)
 examples/           sample data generator, coworking profile, sample outputs

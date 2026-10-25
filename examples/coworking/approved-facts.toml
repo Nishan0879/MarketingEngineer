@@ -9,7 +9,7 @@ approved_on = "2026-10-20"
 
 [facts.month_to_month]
 text = "Memberships are month to month, with no long-term contract."
-topics = ["contract"]
+topics = ["contract", "coworking"]
 segments = ["members"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"
@@ -31,7 +31,7 @@ expires_on = "2027-03-31"
 
 [facts.office_flex]
 text = "Private offices are available on 6- or 12-month terms, and teams can move to a larger office as they grow."
-topics = ["contract", "growth"]
+topics = ["contract", "growth", "private_offices"]
 segments = ["offices"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"

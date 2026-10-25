@@ -88,6 +88,18 @@ level = 1                     # writes briefs; a human writes, approves and publ
 spec = "agents/content-brief-writer.md"
 max_actions_per_day = 10
 
+[agents.search-analyst]
+engine = "search"
+level = 0                     # reads search data and reports
+spec = "agents/search-analyst.md"
+max_actions_per_day = 5
+
+[agents.search-page-drafter]
+engine = "search"
+level = 1                     # drafts FAQ and page changes; a human approves and publishes
+spec = "agents/search-page-drafter.md"
+max_actions_per_day = 10
+
 [agents.first-response-drafter]
 engine = "conversion"
 level = 1                     # drafts only; a human approves and sends
@@ -112,6 +124,8 @@ import                 = "every 2h"
 first-response-drafter = "every 2h"
 customer-truth-analyst = "daily 06:30"
 content-brief-writer   = "weekly mon 06:40"
+search-analyst         = "weekly mon 06:50"
+search-page-drafter    = "weekly mon 06:55"
 cold-inquiry-auditor   = "weekly mon 06:00"
 re-engagement-drafter  = "weekly mon 06:15"
 experiment-tracker     = "weekly mon 06:30"

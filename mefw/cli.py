@@ -17,10 +17,11 @@ from .core.activity_log import ActivityLog
 from .core import autonomy, client_report, cockpit, quality, customer_truth, experiments, scheduler, truth_report
 from .core.control import Control
 from .core.errors import GuardrailError
-from .core.ledger import Ledger, parse_ts
+from .core.ledger import Ledger, iso, parse_ts
 from .core.runner import Runner
 from .core.workspace import Workspace
 from .engines.content import briefs as content
+from .engines.search import analysis as search_analysis, data as search_data, pages as search_pages
 from .engines.conversion import cold_audit, first_response, queue, reengage
 
 OPERATOR = "operator"
@@ -326,6 +327,101 @@ def cmd_content(args) -> int:
                    {"summary": f"{meta['id']} published on {args.channel}"})
         print(f"Recorded {args.channel} for {meta['id']}. Inquiries tagged {meta['tag']} will count toward it.")
     return 0
+
+
+def cmd_search(args) -> int:
+    ws = _ws(args)
+    at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
+
+    if args.action == "import":
+        snap = search_data.import_snapshot(ws, Path(args.queries), date.fromisoformat(args.period_end), args.days,
+                                           Path(args.pages) if args.pages else None, at)
+        if snap.get("unchanged"):
+            print(f"Already imported the period ending {args.period_end}; nothing new.")
+            return 0
+        ActivityLog(ws.log_path, ws.client_id).append(
+            OPERATOR, "search_import", "ok", {"period_end": args.period_end, "days": args.days},
+            {"summary": f"{len(snap['queries'])} queries, {len(snap['pages'])} pages"})
+        print(f"Imported {len(snap['queries'])} queries and {len(snap['pages'])} pages for the {args.days} days "
+              f"to {args.period_end}.")
+        return 0
+
+    if args.action == "analyze":
+        runner = Runner(ws)
+        try:
+            snaps = search_data.snapshots(ws, at.date())
+            key = f"search-analyze:{at.date()}:{snaps[-1]['period_end'] if snaps else 'none'}"
+
+            def job() -> dict:
+                d = search_analysis.analyze(ws, runner.ledger, at)
+                rel = search_analysis.write(ws, d)
+                return {"summary": f"{len(d['opportunities'])} opportunities, {len(d['gaps'])} unanswered topics, "
+                                   f"{sum(bool(x['problems']) for x in d['listings'])} listing(s) to fix",
+                        "report": rel}
+            res = runner.run(search_analysis.AGENT, "search_report", "observe", key, job, {"at": iso(at)})
+        except GuardrailError as e:
+            print(f"Refused: {e}", file=sys.stderr)
+            return 2
+        finally:
+            runner.close()
+        if res.status == "duplicate":
+            print("Already ran for this data and date; nothing new to do.")
+        print(res.output.get("summary", ""))
+        if res.output.get("report"):
+            print(f"Report: {ws.root / res.output['report']}")
+        return 0
+
+    if args.action == "drafts":
+        runner = Runner(ws)
+        made, refused = [], None
+        try:
+            for c in search_pages.candidates(ws, runner.ledger, at)[: args.max]:
+                try:
+                    res = runner.run(search_pages.AGENT, "search_draft", "draft", f"search:{c['topic']}:{at.date()}",
+                                     lambda c=c: _search_job(ws, runner.ledger, c, at), {"topic": c["topic"]})
+                except GuardrailError as e:
+                    refused = str(e)
+                    break
+                if res.status == "ok":
+                    made.append(res.output["id"])
+        finally:
+            runner.close()
+        print(f"Wrote {len(made)} search draft(s)" + (": " + ", ".join(made) if made else "."))
+        if refused:
+            print(f"Stopped: {refused}", file=sys.stderr)
+            return 2
+        return 0
+
+    if args.action == "list":
+        for _, meta, _ in search_pages.all_drafts(ws):
+            urls = ", ".join(p["url"] for p in meta.get("published", []))
+            print(f"{meta['id']}  {meta['status']:<9} page={meta['page']}" + (f"  live: {urls}" if urls else ""))
+        return 0
+
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    if args.action == "ai-record":
+        e = search_data.record_ai_check(ws, args.assistant, args.prompt, args.mentioned == "yes", args.cited,
+                                        args.by, at, args.note or "")
+        log.append(args.by, "search_ai_check", "ok", {"assistant": e["assistant"], "prompt": e["prompt"]},
+                   {"mentioned": e["mentioned"], "cited": e["cited"]})
+        print(f"Recorded {e['assistant']} on {e['prompt']}: " + ("mentioned" if e["mentioned"] else "not mentioned")
+              + (f", cited {e['cited']}" if e["cited"] else "") + ".")
+    elif args.action == "approve":
+        meta = search_pages.approve(ws, args.id, args.by, at, args.quote_permission)
+        log.append(args.by, "search_approve", "ok", {"id": meta["id"]}, {"summary": f"Approved {meta['id']}"})
+        print(f"Approved {meta['id']}. Put it on the site, then `mefw search published {meta['id']} --url <link>`.")
+    else:
+        meta = search_pages.published(ws, args.id, args.url, args.by, at)
+        log.append(args.by, "search_published", "ok", {"id": meta["id"], "url": args.url},
+                   {"summary": f"{meta['id']} live at {args.url}"})
+        print(f"Recorded {meta['id']} at {args.url}. The weekly report will track its queries.")
+    return 0
+
+
+def _search_job(ws: Workspace, ledger: Ledger, c: dict, at: datetime) -> dict:
+    meta = search_pages.make_draft(ws, ledger, c, at)
+    return {"summary": f"Search draft {meta['id']} for {c['topic']}", "id": meta["id"]}
 
 
 def _brief_job(ws: Workspace, c: dict, at: datetime) -> dict:
@@ -765,6 +861,41 @@ def main(argv: list[str] | None = None) -> int:
     c = with_client(csub.add_parser("results", help="inquiries traced to each brief's tag"))
     c.add_argument("--at")
     sp.set_defaults(fn=cmd_content)
+
+    sp = sub.add_parser("search", help="search visibility: import search data, report, drafts, AI assistant checks")
+    ssub = sp.add_subparsers(dest="action", required=True)
+    c = with_client(ssub.add_parser("import", help="import a Search Console queries export"))
+    c.add_argument("queries")
+    c.add_argument("--pages", help="the matching pages export (optional)")
+    c.add_argument("--period-end", required=True, help="last day the export covers (YYYY-MM-DD)")
+    c.add_argument("--days", type=int, default=28)
+    c.add_argument("--at")
+    c = with_client(ssub.add_parser("analyze", help="weekly search report (Level 0)"))
+    c.add_argument("--at")
+    c = with_client(ssub.add_parser("drafts", help="draft FAQ and page changes (Level 1)"))
+    c.add_argument("--max", type=int, default=3)
+    c.add_argument("--at")
+    with_client(ssub.add_parser("list", help="search drafts and where they went live"))
+    c = with_client(ssub.add_parser("approve", help="check a draft and approve it"))
+    c.add_argument("id")
+    c.add_argument("--quote-permission", action="store_true",
+                   help="you have permission from anyone quoted in the draft")
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(ssub.add_parser("published", help="record that an approved draft went live"))
+    c.add_argument("id")
+    c.add_argument("--url", required=True)
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(ssub.add_parser("ai-record", help="record what an AI assistant said for one prompt"))
+    c.add_argument("--assistant", required=True)
+    c.add_argument("--prompt", required=True, help="the prompt's key under [search.ai.prompts]")
+    c.add_argument("--mentioned", required=True, choices=["yes", "no"])
+    c.add_argument("--cited", help="the URL it cited, if any of ours")
+    c.add_argument("--note")
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    sp.set_defaults(fn=cmd_search)
 
     sp = sub.add_parser("drafts", help="first-response and re-engagement drafts: make, review, approve, reject, "
                                        "mark sent")

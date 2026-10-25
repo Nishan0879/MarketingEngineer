@@ -76,6 +76,24 @@ def note_for(themes, office, recent, losing=True):
     return " ".join(random.choice(NOTES[t]) for t in dict.fromkeys(picks))
 
 
+SEARCH_QUERIES = [  # query, clicks, impressions, CTR, position
+    ("example coworking", 210, 640, "32.81%", 1.2),
+    ("coworking near me", 38, 2900, "1.31%", 8.4),
+    ("coworking space near me", 22, 1650, "1.33%", 9.1),
+    ("private office for rent", 6, 980, "0.61%", 14.2),
+    ("small office space for rent near me", 4, 720, "0.56%", 17.8),
+    ("office with parking for rent", 1, 310, "0.32%", 23.5),
+    ("coworking parking", 0, 120, "0%", 31.0),
+    ("hot desk price", 9, 410, "2.2%", 6.3),
+    ("how much does a private office cost", 3, 260, "1.15%", 12.7),
+    ("meeting room hire", 2, 540, "0.37%", 19.4),
+    ("day pass coworking", 7, 180, "3.89%", 5.2),
+    ("best coworking spaces", 1, 1200, "0.08%", 42.0),
+    ("remote work tips", 0, 90, "0%", 61.0),
+    ("coworking jobs", 0, 8, "0%", 70.0),
+]
+
+
 def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
     random.seed(seed)
     leads, acts, signals = [], [], []
@@ -217,6 +235,11 @@ def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
             w = csv.DictWriter(f, fieldnames=list(rows[0]))
             w.writeheader()
             w.writerows(rows)
+    # A Search Console "Queries" export for the 28 days to AS_OF. Fixed, so it uses no randomness.
+    with open(out_dir / "sample_search_queries.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["Top queries", "Clicks", "Impressions", "CTR", "Position"])
+        w.writerows(SEARCH_QUERIES)
     print(f"Wrote {len(leads)} leads, {len(acts)} activities and {len(signals)} signals to {out_dir}")
 
 
