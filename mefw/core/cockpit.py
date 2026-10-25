@@ -17,6 +17,7 @@ from .control import Control
 from .evidence import refs_md
 from .ledger import Ledger, LeadState, iso
 from .workspace import Workspace
+from ..engines.content import briefs as content
 from ..engines.conversion import cold_audit, first_response, queue, reengage
 
 NORTH_STAR_METRICS = ("commits", "commit_value")
@@ -189,6 +190,14 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
     if drafts["approved"]:
         decisions.append(f"Send {drafts['approved']} approved re-engagement draft(s) from your own tool, then mark "
                          "them `mefw drafts sent`")
+    unwritten = [m["id"] for _, m, _ in content.all_briefs(ws) if m["status"] == "brief"]
+    if unwritten:
+        decisions.append(f"Write or drop {len(unwritten)} content brief(s) ({', '.join(unwritten)}), then "
+                         "`mefw content approve <id>`")
+    unpublished = [m["id"] for _, m, _ in content.all_briefs(ws) if m["status"] == "approved"]
+    if unpublished:
+        decisions.append(f"Publish {len(unpublished)} approved content brief(s) ({', '.join(unpublished)}), then "
+                         "record each with `mefw content published`")
     for agent in (first_response.AGENT, reengage.AGENT):
         record = queue.track_record(ws, agent)
         if record["meets_threshold"]:

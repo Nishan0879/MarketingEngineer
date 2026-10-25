@@ -171,6 +171,9 @@ def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
             "Stage": stage, "Qualified At": fmt(qualified_at), "Tour Booked At": fmt(tour_at),
             "Status": status, "Closed At": fmt(closed_at), "Lost Reason": lost_reason,
             "Do Not Contact": "Yes" if random.random() < 0.04 else "",
+            # Recent office inquiries from the website came in on a parking post (content attribution demo).
+            "UTM Campaign": "mefw-parking-offices" if office and channel == "Website form" and (AS_OF - created).days < 20
+            else "",
         })
         acts += [{"Lead ID": ref, "Timestamp": fmt(t), "Direction": "outbound" if d == "out" else "inbound"}
                  for t, d in touches]

@@ -19,6 +19,8 @@ def _dump_value(v) -> str:
         return repr(v)
     if isinstance(v, list):
         return "[" + ", ".join(_dump_value(x) for x in v) + "]"
+    if isinstance(v, dict):  # inline table
+        return "{ " + ", ".join(f"{json.dumps(str(k))} = {_dump_value(x)}" for k, x in v.items()) + " }"
     return json.dumps(str(v), ensure_ascii=False)  # JSON string escapes are valid TOML basic strings
 
 

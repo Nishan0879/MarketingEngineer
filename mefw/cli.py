@@ -20,6 +20,7 @@ from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
 from .core.runner import Runner
 from .core.workspace import Workspace
+from .engines.content import briefs as content
 from .engines.conversion import cold_audit, first_response, queue, reengage
 
 OPERATOR = "operator"
@@ -261,6 +262,75 @@ def cmd_report(args) -> int:
     if res.output.get("report"):
         print(f"Read and edit {ws.root / res.output['report']}, then `mefw report approve --month {month}`.")
     return 0
+
+
+def cmd_content(args) -> int:
+    ws = _ws(args)
+    at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
+
+    if args.action == "briefs":
+        runner = Runner(ws)
+        made, refused = [], None
+        try:
+            cands, passed = content.candidates(ws, at, runner.ledger)
+            for c in cands[: args.max]:
+                try:
+                    res = runner.run(content.AGENT, "content_brief", "draft", f"brief:{c['insight']}:{at.date()}",
+                                     lambda c=c: _brief_job(ws, c, at), {"insight": c["insight"]})
+                except GuardrailError as e:
+                    refused = str(e)
+                    break
+                if res.status == "ok":
+                    made.append(res.output["id"])
+            rows = content.results(ws, runner.ledger, at)
+        finally:
+            runner.close()
+        ws.path(content.RESULTS).parent.mkdir(parents=True, exist_ok=True)
+        ws.path(content.RESULTS).write_text(content.render_results(rows, at))
+        print(f"Wrote {len(made)} content brief(s)" + (": " + ", ".join(made) if made else "."))
+        if passed:
+            print("Not enough evidence yet for: " + ", ".join(passed))
+        if not cands and not passed:
+            print("No confirmed insights without a recent brief. Confirm an insight record to brief it.")
+        print(f"Results so far: {ws.root / content.RESULTS}")
+        if refused:
+            print(f"Stopped: {refused}", file=sys.stderr)
+            return 2
+        return 0
+
+    if args.action == "list":
+        for _, meta, _ in content.all_briefs(ws):
+            pubs = ", ".join(p["channel"] for p in meta.get("published", []))
+            print(f"{meta['id']}  {meta['status']:<9} tag={meta['tag']}" + (f"  published: {pubs}" if pubs else ""))
+        return 0
+
+    if args.action == "results":
+        ledger = Ledger(ws.db_path, ws.client_id)
+        try:
+            print(content.render_results(content.results(ws, ledger, at), at))
+        finally:
+            ledger.close()
+        return 0
+
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    if args.action == "approve":
+        meta = content.approve(ws, args.id, args.by, at, args.quote_permission)
+        log.append(args.by, "content_approve", "ok", {"id": meta["id"], "assets": meta["approved_assets"]},
+                   {"summary": f"Approved {meta['id']}: {', '.join(meta['approved_assets'])}"})
+        print(f"Approved {', '.join(meta['approved_assets'])} in {meta['id']}. Publish them, then "
+              f"`mefw content published {meta['id']} --channel <name> --url <link>`.")
+    else:
+        meta = content.published(ws, args.id, args.channel, args.url, args.by, at)
+        log.append(args.by, "content_published", "ok", {"id": meta["id"], "channel": args.channel, "url": args.url},
+                   {"summary": f"{meta['id']} published on {args.channel}"})
+        print(f"Recorded {args.channel} for {meta['id']}. Inquiries tagged {meta['tag']} will count toward it.")
+    return 0
+
+
+def _brief_job(ws: Workspace, c: dict, at: datetime) -> dict:
+    meta = content.make_brief(ws, c, at)
+    return {"summary": f"Brief {meta['id']} for {c['insight']}", "id": meta["id"]}
 
 
 def cmd_drafts(args) -> int:
@@ -673,6 +743,28 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--by", default=OPERATOR)
     r.add_argument("--as-of")
     sp.set_defaults(fn=cmd_report)
+
+    sp = sub.add_parser("content", help="content engine: briefs from confirmed insights, approval, publishing, results")
+    csub = sp.add_subparsers(dest="action", required=True)
+    c = with_client(csub.add_parser("briefs", help="write briefs for confirmed insights (Level 1)"))
+    c.add_argument("--max", type=int, default=3)
+    c.add_argument("--at")
+    with_client(csub.add_parser("list", help="briefs and what's been published"))
+    c = with_client(csub.add_parser("approve", help="check the written assets and approve them"))
+    c.add_argument("id")
+    c.add_argument("--quote-permission", action="store_true",
+                   help="you have permission from anyone quoted in the assets")
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(csub.add_parser("published", help="record that an approved asset went live"))
+    c.add_argument("id")
+    c.add_argument("--channel", required=True)
+    c.add_argument("--url", required=True)
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(csub.add_parser("results", help="inquiries traced to each brief's tag"))
+    c.add_argument("--at")
+    sp.set_defaults(fn=cmd_content)
 
     sp = sub.add_parser("drafts", help="first-response and re-engagement drafts: make, review, approve, reject, "
                                        "mark sent")

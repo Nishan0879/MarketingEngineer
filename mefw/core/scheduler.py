@@ -40,7 +40,7 @@ from .workspace import Workspace
 AGENT = "scheduler"
 ACTION = "scheduled_run"
 # The order jobs run in when several are due at once.
-ORDER = ["import", "customer-truth-analyst", "cold-inquiry-auditor", "first-response-drafter",
+ORDER = ["import", "customer-truth-analyst", "content-brief-writer", "cold-inquiry-auditor", "first-response-drafter",
          "re-engagement-drafter", "experiment-tracker", "quality-check", "growth-cockpit", "client-reporter"]
 NOT_AGENTS = ("import", "quality-check")  # jobs the scheduler runs that aren't agents
 MAX_ATTEMPTS = 2  # per slot: the first try and one retry
@@ -192,6 +192,7 @@ def command_for(ws: Workspace, job: str, now: datetime) -> list[list[str]]:
     c, at = ["--client", str(ws.root)], now.isoformat()
     return {
         "customer-truth-analyst": [["truth", *c, "--as-of", at]],
+        "content-brief-writer": [["content", "briefs", *c, "--at", at]],
         "cold-inquiry-auditor": [["audit-cold", *c, "--as-of", at]],
         "first-response-drafter": [["drafts", "make", *c, "--agent", job, "--at", at]],
         "re-engagement-drafter": [["drafts", "make", *c, "--agent", job, "--at", at]],

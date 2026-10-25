@@ -31,6 +31,7 @@ class LeadRecord:
     outcome_at: datetime | None = None
     lost_reason: str | None = None
     opted_out: bool = False                    # the tool says this person asked not to be contacted
+    campaign: str | None = None                # campaign or UTM tag, for content attribution
 
 
 class LeadSource(Protocol):
@@ -57,7 +58,8 @@ def import_records(ws: Workspace, ledger: Ledger, source: LeadSource) -> ImportR
     rep = ImportReport()
     for r in source.records():
         rep.leads += 1
-        lead_id = ledger.upsert_lead(source.name, r.ref, r.channel, r.segment, r.value, r.touches_out_reported)
+        lead_id = ledger.upsert_lead(source.name, r.ref, r.channel, r.segment, r.value, r.touches_out_reported,
+                                     r.campaign)
         add = lambda *a, **k: ledger.add_event(lead_id, *a, source=source.name, **k)  # noqa: E731
         rep.new_events += add("inquired", r.inquired_at)
         for at, direction in r.touches:

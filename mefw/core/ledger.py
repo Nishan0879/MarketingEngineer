@@ -134,6 +134,7 @@ class LeadState:
     outcome_at: datetime | None = None
     lost_reason: str | None = None
     opted_out: bool = False  # never contact (Section 11.4, rule 3)
+    campaign: str | None = None  # campaign or tracking tag the lead came in on
 
     @property
     def furthest_stage(self) -> str | None:
@@ -160,6 +161,9 @@ class Ledger:
         self.db.execute("PRAGMA foreign_keys = ON")
         self.db.execute("PRAGMA journal_mode = WAL")
         self.db.executescript(SCHEMA)
+        # Added in 0.9: the campaign or tracking tag the lead came in on (content attribution, Section 9.1).
+        if "campaign" not in {r[1] for r in self.db.execute("PRAGMA table_info(leads)")}:
+            self.db.execute("ALTER TABLE leads ADD COLUMN campaign TEXT")
 
     def close(self) -> None:
         self.db.close()
@@ -167,20 +171,22 @@ class Ledger:
     # Leads and events
 
     def upsert_lead(self, source: str, ref: str, channel=None, segment=None, value=None,
-                    touches_out_reported: int | None = None) -> str:
+                    touches_out_reported: int | None = None, campaign: str | None = None) -> str:
         """Add a lead or refresh its attributes. touches_out_reported is the CRM's own
         count of outbound follow-ups, used when individual touches aren't exported."""
         lead_id = f"{source}:{ref}"
         self.db.execute(
             """INSERT INTO leads (lead_id, client_id, source, ref, channel, segment, value,
-                                  touches_out_reported, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                  touches_out_reported, created_at, campaign)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(lead_id) DO UPDATE SET
                  channel = COALESCE(excluded.channel, channel),
+                 campaign = COALESCE(excluded.campaign, campaign),
                  segment = COALESCE(excluded.segment, segment),
                  value   = COALESCE(excluded.value, value),
                  touches_out_reported = COALESCE(excluded.touches_out_reported, touches_out_reported)""",
-            (lead_id, self.client_id, source, ref, channel, segment, value, touches_out_reported, now_iso()),
+            (lead_id, self.client_id, source, ref, channel, segment, value, touches_out_reported, now_iso(),
+             campaign),
         )
         return lead_id
 
@@ -225,9 +231,10 @@ class Ledger:
     def states(self, as_of: datetime) -> list[LeadState]:
         leads, reported = {}, {}
         for r in self.db.execute(
-            "SELECT lead_id, ref, source, channel, segment, value, touches_out_reported FROM leads"
+            "SELECT lead_id, ref, source, channel, segment, value, touches_out_reported, campaign FROM leads"
         ):
-            leads[r[0]] = LeadState(lead_id=r[0], ref=r[1], source=r[2], channel=r[3], segment=r[4], value=r[5])
+            leads[r[0]] = LeadState(lead_id=r[0], ref=r[1], source=r[2], channel=r[3], segment=r[4], value=r[5],
+                                    campaign=r[7])
             reported[r[0]] = r[6] or 0
         rows = self.db.execute(
             "SELECT lead_id, kind, at, stage, value, detail FROM lead_events WHERE at <= ? ORDER BY at, id",
