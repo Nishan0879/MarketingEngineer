@@ -20,7 +20,7 @@ from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
 from .core.runner import Runner
 from .core.workspace import Workspace
-from .engines.conversion import cold_audit
+from .engines.conversion import cold_audit, reengage
 
 OPERATOR = "operator"
 
@@ -227,6 +227,121 @@ def cmd_cockpit(args) -> int:
     return 0
 
 
+def cmd_drafts(args) -> int:
+    ws = _ws(args)
+    log = ActivityLog(ws.log_path, ws.client_id)
+    at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
+
+    if args.action == "make":
+        runner = Runner(ws)
+        made, blocked, refused, no_template = 0, 0, None, set()
+        try:
+            playbook = reengage.load_playbook(ws)
+            cands, skipped = reengage.candidates(ws, runner.ledger, at)
+            for c in cands:
+                if made >= args.max:
+                    break
+                if reengage.open_draft_for(ws, c.state.lead_id):
+                    continue
+                if reengage.template_for(playbook, c.leak, c.segment) is None:
+                    no_template.add(f"{c.leak} ({c.segment})")
+                    continue
+                try:
+                    res = runner.run(reengage.AGENT, "draft_reengagement", "draft", reengage.today_key(c),
+                                     lambda c=c: _draft_job(ws, c, at), {"lead": c.state.ref, "leak": c.leak})
+                except GuardrailError as e:
+                    refused = str(e)
+                    break
+                if res.status == "ok" and "id" in res.output:
+                    made += 1
+                    blocked += bool(res.output.get("blocking_issues"))
+            for sk in skipped:
+                runner.log.append(reengage.AGENT, "skip_lead", "skipped", {"lead": sk["ref"]},
+                                  {"reason": sk["why"], "receipt": sk.get("receipt")})
+        finally:
+            runner.close()
+        print(f"Drafted {made} message(s) for review ({blocked} need fixes before they can be approved). "
+              f"Skipped {len(skipped)} lead(s): " + (", ".join(f"{s['ref']} ({s['why']})" for s in skipped[:10]) or "none"))
+        if no_template:
+            print("No playbook template for: " + ", ".join(sorted(no_template)))
+        if refused:
+            print(f"Stopped: {refused}", file=sys.stderr)
+            return 2
+        print(f"Review them in {ws.root / reengage.DRAFTS}/")
+        return 0
+
+    if args.action == "list":
+        for _, meta, _ in reengage.existing_drafts(ws):
+            if args.all or meta["status"] in ("pending", "approved"):
+                flag = " (needs fixes)" if meta.get("blocking_issues") else ""
+                print(f"{meta['id']}  {meta['status']:<9} {meta['lead']:<10} {meta['leak']}{flag}")
+        return 0
+
+    if args.action == "record":
+        r = reengage.track_record(ws)
+        print(f"Decided: {r['decided']} (approved unedited {r['approved_unedited']}, edited {r['edited']}, "
+              f"rejected {r['rejected']})")
+        print(f"Current streak of unedited approvals: {r['streak']} over {r['streak_days']} days "
+              f"(Level 2 needs {reengage.PROMOTION_STREAK} over {reengage.PROMOTION_DAYS}+ days, a written "
+              "playbook, and your sign-off)")
+        return 0
+
+    if args.action == "export":
+        path = reengage.export_approved(ws, at)
+        print(f"Wrote {path}" if path else "No approved drafts waiting to be sent.")
+        return 0
+
+    log.verify()
+    if args.action == "approve":
+        meta = reengage.approve(ws, args.id, args.by, at)
+        log.append(args.by, "draft_approve", "ok", {"id": meta["id"], "edited": meta["edited"]},
+                   {"summary": f"Approved {meta['id']}" + (" after edits" if meta["edited"] else " as drafted")})
+        print(f"Approved {meta['id']}" + (" (edited)" if meta["edited"] else "") + ". Send it from your own tool, "
+              f"then `mefw drafts sent {meta['id']}`.")
+    elif args.action == "reject":
+        meta = reengage.reject(ws, args.id, args.reason, args.by, at)
+        log.append(args.by, "draft_reject", "ok", {"id": meta["id"]}, {"reason": args.reason})
+        print(f"Rejected {meta['id']}; reason added to rules/corrections.md.")
+    elif args.action == "sent":
+        ledger = Ledger(ws.db_path, ws.client_id)
+        try:
+            meta = reengage.mark_sent(ws, ledger, args.id, args.by, at)
+        finally:
+            ledger.close()
+        log.append(args.by, "draft_sent", "ok", {"id": meta["id"], "lead": meta["lead"]},
+                   {"summary": f"{meta['id']} sent to {meta['lead']} by a human"})
+        print(f"Recorded {meta['id']} as sent.")
+    return 0
+
+
+def _draft_job(ws: Workspace, c, at: datetime) -> dict:
+    meta = reengage.make_draft(ws, c, at)
+    if "skipped" in meta:
+        return {"summary": meta["skipped"], "skipped": meta["skipped"]}
+    return {"summary": f"Drafted {meta['id']} for {meta['lead']} ({meta['leak']})", "id": meta["id"],
+            "blocking_issues": meta["blocking_issues"]}
+
+
+def cmd_opt_out(args) -> int:
+    ws = _ws(args)
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    ledger = Ledger(ws.db_path, ws.client_id)
+    try:
+        lead_id = ledger.find_lead(args.ref)
+        if not lead_id:
+            print(f"No lead with reference {args.ref}", file=sys.stderr)
+            return 1
+        at = parse_ts(args.at) if args.at else datetime.now(timezone.utc)
+        value = "opted_in" if args.undo else "opted_out"
+        ledger.add_event(lead_id, "consent", at, source=OPERATOR, value=value)
+    finally:
+        ledger.close()
+    log.append(OPERATOR, "consent", "ok", {"lead": lead_id, "value": value}, {"summary": f"{lead_id} {value}"})
+    print(f"{lead_id}: {value.replace('_', ' ')}")
+    return 0
+
+
 def cmd_outcome(args) -> int:
     ws = _ws(args)
     log = ActivityLog(ws.log_path, ws.client_id)
@@ -422,6 +537,34 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--as-of")
     sp.set_defaults(fn=cmd_cockpit)
 
+    sp = sub.add_parser("drafts", help="re-engagement drafts: make, review, approve, reject, mark sent")
+    dsub = sp.add_subparsers(dest="action", required=True)
+    d = with_client(dsub.add_parser("make", help="draft messages for leads that went cold on our side (Level 1)"))
+    d.add_argument("--max", type=int, default=10, help="most drafts to make this run")
+    d.add_argument("--at")
+    d = with_client(dsub.add_parser("list", help="pending and approved drafts"))
+    d.add_argument("--all", action="store_true", help="include rejected and sent")
+    for name in ("approve", "sent"):
+        d = with_client(dsub.add_parser(name, help=f"{name} a draft (operator)"))
+        d.add_argument("id")
+        d.add_argument("--by", default=OPERATOR)
+        d.add_argument("--at")
+    d = with_client(dsub.add_parser("reject", help="reject a draft; the reason becomes a correction"))
+    d.add_argument("id")
+    d.add_argument("--reason", required=True)
+    d.add_argument("--by", default=OPERATOR)
+    d.add_argument("--at")
+    d = with_client(dsub.add_parser("export", help="CSV of approved drafts for your sending tool"))
+    d.add_argument("--at")
+    with_client(dsub.add_parser("record", help="track record toward Level 2"))
+    sp.set_defaults(fn=cmd_drafts)
+
+    sp = with_client(sub.add_parser("opt-out", help="record that a lead asked not to be contacted"))
+    sp.add_argument("ref")
+    sp.add_argument("--undo", action="store_true", help="record that they opted back in")
+    sp.add_argument("--at")
+    sp.set_defaults(fn=cmd_opt_out)
+
     sp = with_client(sub.add_parser("outcome", help="record a won/lost outcome for a lead"))
     sp.add_argument("ref")
     sp.add_argument("outcome", choices=["won", "lost", "reopened"])
@@ -450,4 +593,8 @@ def main(argv: list[str] | None = None) -> int:
     sp.set_defaults(fn=cmd_log)
 
     args = p.parse_args(argv)
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except (ValueError, KeyError, FileNotFoundError) as e:
+        print(f"Error: {e.args[0] if e.args else e}", file=sys.stderr)
+        return 1

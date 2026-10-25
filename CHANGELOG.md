@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-25
+- Approved facts as data (`profile/approved-facts.toml`): approver, date, optional expiry and segments.
+- Opt-outs: consent events in the ledger from a do-not-contact column or `mefw opt-out`.
+- Conversion engine's first Level 1 agent, `re-engagement-drafter`. It drafts follow-ups for leads that went cold on our side from the operator's playbook and approved facts, and checks them for unapproved claims, expired facts, banned language, sensitive-data requests and required opt-out text. It skips opted-out, decided and escalation-worthy leads.
+- Approval queue: approve (rechecks edited text and records edits), reject (adds a correction), export, and mark sent (records the outbound touch).
+- Track record toward Level 2 per Section 11.2; the cockpit lists pending drafts and flags when the bar is met.
+- CLI errors print a message instead of a traceback.
+
 ## 0.3.0 — 2026-10-25
 - Funnel metrics shared by experiments and the cockpit. Only mature leads are counted, and every value has its sample size.
 - Experiments (Section 13): briefs with TOML front matter, a proposed → approved → running → completed/stopped lifecycle, decision criteria locked by hash at approval, before/after and holdout comparisons, suggested verdicts once the minimum window and volume are met, operator-only verdicts, and a lessons file.

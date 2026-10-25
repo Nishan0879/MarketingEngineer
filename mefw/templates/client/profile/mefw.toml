@@ -72,6 +72,12 @@ level = 0
 spec = "agents/growth-cockpit.md"
 max_actions_per_day = 5
 
+[agents.re-engagement-drafter]
+engine = "conversion"
+level = 1                     # drafts only; a human approves and sends
+spec = "agents/re-engagement-drafter.md"
+max_actions_per_day = 25
+
 [conversion.cold_audit]
 lookback_days = 180
 cold_after_days = 14          # no activity for this long = cold
@@ -151,6 +157,7 @@ stage             = "Stage"
 outcome           = "Status"
 outcome_at        = "Closed At"
 lost_reason       = "Lost Reason"
+# opted_out       = "Do Not Contact"   # map this if the export has it; drafts skip opted-out leads
 
 # Columns holding the date a stage was reached, keyed by the client's stage name.
 [adapters.csv.stage_dates]

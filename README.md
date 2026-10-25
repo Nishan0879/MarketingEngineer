@@ -2,7 +2,7 @@
 
 A reusable system for running marketing for lead-based businesses with AI agents, overseen by one operator. The operating manual is [MarketingEngineerFW.md](MarketingEngineerFW.md); this repository is the code that enforces it.
 
-**Built so far (v0.3):** the core guardrails, a lead/outcome ledger, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, CSV adapters for any lead-tracking tool and for notes/messages/reviews, and the conversion engine's first job, a cold-inquiry audit. Client-agnostic: a new client is a new workspace plus a config file.
+**Built so far (v0.4):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, the conversion engine's first drafting agent (re-engagement drafts held for approval), CSV adapters for any lead-tracking tool and for notes/messages/reviews, and the conversion engine's first job, a cold-inquiry audit. Client-agnostic: a new client is a new workspace plus a config file.
 
 ## Quick start
 
@@ -12,6 +12,8 @@ Python 3.11+, no dependencies.
 python examples/make_sample.py examples                 # fictional coworking + office-leasing data
 python -m mefw init ../client-demo --client-id demo      # new client workspace (Section 17.2 layout)
 sed 's/{client_id}/demo/' examples/coworking/mefw.toml > ../client-demo/profile/mefw.toml   # example profile
+cp examples/coworking/approved-facts.toml ../client-demo/profile/
+cp examples/coworking/playbook.toml ../client-demo/engines/conversion/
 python -m mefw import-csv --client ../client-demo examples/sample_leads.csv --activities examples/sample_activities.csv
 python -m mefw import-signals --client ../client-demo examples/sample_signals.csv
 python -m mefw audit-cold --client ../client-demo --as-of 2026-10-25T12:00
@@ -21,11 +23,12 @@ python -m mefw experiment new --client ../client-demo --name "Reply within an ho
 python -m mefw experiment approve --client ../client-demo EXP-demo-001 --at 2026-08-21T09:00
 python -m mefw experiment start --client ../client-demo EXP-demo-001 --at 2026-08-22T09:00
 python -m mefw experiment measure --client ../client-demo --at 2026-10-25T12:00
+python -m mefw drafts make --client ../client-demo --at 2026-10-25T12:00
 python -m mefw cockpit --client ../client-demo --as-of 2026-10-25T12:00
 python -m mefw status --client ../client-demo
 ```
 
-What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
+What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a re-engagement draft](examples/sample-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
 
 For a real client, edit `profile/mefw.toml` in their workspace: segments, stage names, themes in their customers' words, and the column names of their exports. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
 
@@ -74,6 +77,29 @@ The Section 13.2 rules are enforced:
 
 Metrics: `inquiry_to_meeting`, `meeting_to_commit`, `inquiry_to_commit`, `first_response_minutes`, `responded_within_1h`.
 
+## Re-engagement drafts (conversion engine, Level 1)
+
+`mefw drafts make` (agent `re-engagement-drafter`) writes a message for each lead the cold audit marks as ours to fix: never answered, waiting on us, slow first reply, or too few follow-ups. Each one fills the operator's template for that reason and segment (`engines/conversion/playbook.toml`) with **approved facts only** (`profile/approved-facts.toml`, each with who approved it, when, and an optional expiry).
+
+Before a draft reaches the operator it is checked:
+
+- Every fact is approved, in date and allowed for the segment.
+- Every claim (a price, a number, "free", "guaranteed", "best") comes from one of those facts.
+- No banned language (`rules/banned-language.md`).
+- No request for sensitive data.
+- The required opt-out text is present.
+
+Leads are skipped, not drafted, when they opted out (from the export's do-not-contact column or `mefw opt-out`), already committed or were lost, or wrote something a human should handle, such as a complaint, a legal threat or a refund request.
+
+Nothing is sent by the system:
+
+- `approve` reruns the checks on the text as edited and records whether it was edited.
+- `reject --reason` adds a row to `rules/corrections.md`.
+- `export` writes a CSV for the client's own sending tool.
+- `sent` records the outbound touch on the lead, so later audits and experiments see it.
+
+`mefw drafts record` tracks the Section 11.2 bar for Level 2: 20 approvals in a row without edits over at least 2 weeks. The cockpit flags it when it's met. Promotion still needs your sign-off.
+
 ## Growth cockpit
 
 `mefw cockpit` (agent `growth-cockpit`, Level 0) writes `cockpit/YYYY-Www.md` using the Section 15 template:
@@ -97,6 +123,8 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `truth [--as-of]` | Update customer truth and insight records (Level 0) |
 | `experiment new \| list \| approve \| start \| stop \| measure \| close` | Run experiments; approve, start, stop and close are operator actions |
 | `cockpit [--as-of]` | Write this week's growth cockpit memo (Level 0) |
+| `drafts make \| list \| approve \| reject \| sent \| export \| record` | Re-engagement drafts; everything but `make` is the operator's |
+| `opt-out REF [--undo]` | Record that a lead asked not to be contacted |
 | `outcome REF won\|lost\|reopened [--reason] [--at]` | Record an outcome by hand |
 | `audit-cold [--as-of]` | Run the cold-inquiry audit (Level 0, contacts nobody) |
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |

@@ -1,0 +1,46 @@
+# Re-engagement templates, written and owned by the operator.
+# One template per reason a lead went cold on our side. Placeholders are
+# {fact:key} only, filled from profile/approved-facts.toml. Anything else that
+# reads as a claim (a price, a number, "free", "guaranteed") is refused unless
+# it comes from an approved fact. Segment-specific wording goes under
+# [reengage.<reason>.by_segment.<segment>].
+
+[reengage]
+# Every draft must contain these lines (channel and consent rules).
+must_include = ["If you'd rather not hear from us, just reply and let us know."]
+
+[reengage.never_responded]
+subject = "Sorry we missed your message"
+body = """Hi there,
+
+You got in touch a while ago and we never replied. That's on us, and I'm sorry.
+
+If you're still looking, I'd be glad to help.
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.ball_in_our_court]
+subject = "Following up on your question"
+body = """Hi there,
+
+You wrote back to us and we let it slip. Sorry about that.
+
+If it's still useful, reply here and I'll answer your question properly.
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.slow_first_response]
+subject = "Still looking?"
+body = """Hi there,
+
+We were slow to get back to you when you first reached out. If you're still looking, I'd be glad to help.
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.few_followups]
+subject = "Checking in"
+body = """Hi there,
+
+I wanted to check in once more in case the timing is better now. Happy to answer any questions.
+
+If you'd rather not hear from us, just reply and let us know."""

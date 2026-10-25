@@ -1,60 +1,53 @@
 # What the market is telling us — example-coworking
 
-_Updated 2026-10-25 by `customer-truth-analyst` (Level 0). Generated from 522 imported signals plus recorded lost reasons (last import 2026-10-25T06:11:45+00:00); edit the insight records, not this file._
+_Updated 2026-10-25 by `customer-truth-analyst` (Level 0). Generated from 487 imported signals plus recorded lost reasons (last import 2026-10-25T06:20:00+00:00); edit the insight records, not this file._
 
 ## This period's headline
 
-Office leases (B2B): Parking came up 15 times in the last 30 days (about 9.3 per period before).
+Office leases (B2B): Parking came up 11 times in the last 30 days (about 6.3 per period before).
 
-Receipts: `notes:N-5035`, `notes:N-5313`, `notes:N-5312`, `notes:N-5346`, `notes:N-5034`, `notes:N-5083`, `notes:N-5345`, `notes:N-5079` and 7 more
+Receipts: `notes:N-5156`, `L-1022 (lost reason)`, `notes:N-5257`, `notes:N-5120`, `notes:N-5262`, `notes:N-5119`, `notes:N-5063`, `notes:N-5376` and 3 more
 
 ## Members (B2C)
 
-Internet came up 8 times in the last 30 days (about 4.7 per period before).
+Quiet space for calls came up 7 times in the last 30 days (about 4.7 per period before).
 
-Signals in the last 30 days: **44** (inquiry message 30, lost note 1, lost reason 2, tour note 11). Baseline: 183 over the 3 periods before.
+Signals in the last 30 days: **52** (inquiry message 38, lost note 1, lost reason 2, tour note 11). Baseline: 172 over the 3 periods before.
 
 ### Rising pains and language
 
-- **Price and budget** — falling: 12 this period vs. ~19.3 per period before. `notes:N-5209`, `notes:N-5452`, `notes:N-5208`, `notes:N-5006`, `notes:N-5317` and 7 more
-  - "Asked twice about the price; said it is above their budget." (tour note, `notes:N-5209`)
-  - "Felt the monthly cost was too much compared with working from home." (inquiry message, `notes:N-5317`)
-- **Internet** — rising: 8 this period vs. ~4.7 per period before. `notes:N-5256`, `notes:N-5032`, `notes:N-5031`, `notes:N-5004`, `notes:N-5348` and 3 more
-  - "Asked about internet speed; they upload large video files." (inquiry message, `notes:N-5256`)
-- **Chose an alternative** — falling: 4 this period vs. ~10.7 per period before. `notes:N-5317`, `notes:N-5179`, `notes:N-5030`, `L-1091 (lost reason)`
-  - "Felt the monthly cost was too much compared with working from home." (inquiry message, `notes:N-5317`)
-  - "Chose a competitor" (lost reason, `L-1091 (lost reason)`)
-- **Meeting rooms** — falling: 1 this period vs. ~3 per period before. `notes:N-5123`
-  - "Needs a meeting room twice a week for client calls." (inquiry message, `notes:N-5123`)
-- **Location and commute** — falling: 0 this period vs. ~3 per period before.
-- **Parking** — falling: 0 this period vs. ~3.3 per period before.
+- **Quiet space for calls** — rising: 7 this period vs. ~4.7 per period before. `notes:N-5382`, `notes:N-5276`, `notes:N-5407`, `notes:N-5381`, `notes:N-5275` and 2 more
+  - "Needs somewhere quiet for calls; worried about noise in the open area." (tour note, `notes:N-5382`)
+  - "Asked about phone booths for private calls." (tour note, `notes:N-5276`)
+- **Community and events** — falling: 2 this period vs. ~3.7 per period before. `notes:N-5091`, `notes:N-5356`
+  - "Asked about networking events and other members in tech." (inquiry message, `notes:N-5091`)
+  - "Moved from home for the community and events." (inquiry message, `notes:N-5356`)
 
-Steady: flexible terms 11, community and events 5, quiet space for calls 5, room to grow 1.
+Steady: price and budget 19, flexible terms 14, chose an alternative 10, internet 7, room to grow 1, parking 1.
 
 ### Objections
 
-- **Price and budget**: 12 — "Price too high" (`L-1309 (lost reason)`). `L-1309 (lost reason)`, `L-1032 (lost reason)`, `notes:N-5334`, `L-1222 (lost reason)`, `notes:N-5056` and 7 more
-- **Chose an alternative**: 12 — "Chose a competitor" (`L-1091 (lost reason)`). `L-1091 (lost reason)`, `notes:N-5373`, `L-1243 (lost reason)`, `notes:N-5016`, `L-1011 (lost reason)` and 7 more
-- **Location and commute**: 9 — "Location too far" (`L-1257 (lost reason)`). `L-1257 (lost reason)`, `notes:N-5092`, `L-1064 (lost reason)`, `notes:N-5131`, `L-1090 (lost reason)` and 4 more
-- **Quiet space for calls**: 2 — "Lost: went quiet." (`notes:N-5304`). `notes:N-5304`, `notes:N-5447`
+- **Price and budget**: 13 — "Price too high" (`L-1271 (lost reason)`). `L-1271 (lost reason)`, `L-1012 (lost reason)`, `L-1038 (lost reason)`, `notes:N-5333`, `L-1238 (lost reason)` and 8 more
+- **Chose an alternative**: 10 — "Lost: Chose a competitor." (`notes:N-5412`). `notes:N-5412`, `L-1295 (lost reason)`, `notes:N-5094`, `L-1064 (lost reason)`, `notes:N-5243` and 5 more
+- **Location and commute**: 3 — "Lost: Location too far." (`notes:N-5358`). `notes:N-5358`, `L-1256 (lost reason)`, `L-1051 (lost reason)`
 
 ### What converted vs. what didn't
 
-Themes in conversations with leads that later committed (43) vs. those that were lost (49).
+Themes in conversations with leads that later committed (29) vs. those that were lost (37).
 
 | Theme | Won leads mentioning | Lost leads mentioning |
 |---|---|---|
-| Flexible terms | 24 (56%) | 9 (18%) |
-| Price and budget | 12 (28%) | 20 (41%) |
-| Chose an alternative | 5 (12%) | 11 (22%) |
-| Quiet space for calls | 5 (12%) | 4 (8%) |
-| Meeting rooms | 4 (9%) | 3 (6%) |
-| Internet | 6 (14%) | 8 (16%) |
-| Room to grow | 4 (9%) | 5 (10%) |
-| Parking | 3 (7%) | 3 (6%) |
-| Community and events | 7 (16%) | 8 (16%) |
+| Flexible terms | 22 (76%) | 4 (11%) |
+| Price and budget | 6 (21%) | 21 (57%) |
+| Chose an alternative | 5 (17%) | 11 (30%) |
+| Quiet space for calls | 5 (17%) | 3 (8%) |
+| Internet | 5 (17%) | 3 (8%) |
+| Meeting rooms | 0 (0%) | 3 (8%) |
+| Community and events | 3 (10%) | 6 (16%) |
+| Parking | 1 (3%) | 2 (5%) |
+| Room to grow | 2 (7%) | 2 (5%) |
 
-**Confidence: medium** — every compared group has at least 43 leads; observational, so confounders may apply. A theme showing up more among won leads is a lead for a test, not proof that it causes commitment.
+**Confidence: medium** — every compared group has at least 29 leads; observational, so confounders may apply. A theme showing up more among won leads is a lead for a test, not proof that it causes commitment.
 
 ### Open questions
 
@@ -62,47 +55,53 @@ Themes in conversations with leads that later committed (43) vs. those that were
 
 ## Office leases (B2B)
 
-Parking came up 15 times in the last 30 days (about 9.3 per period before).
+Parking came up 11 times in the last 30 days (about 6.3 per period before).
 
-Signals in the last 30 days: **27** (inquiry message 17, lost reason 3, tour note 7). Baseline: 113 over the 3 periods before.
+Signals in the last 30 days: **20** (inquiry message 13, lost reason 3, tour note 4). Baseline: 92 over the 3 periods before.
 
 ### Rising pains and language
 
-- **Parking** — rising: 15 this period vs. ~9.3 per period before. `notes:N-5035`, `notes:N-5313`, `notes:N-5312`, `notes:N-5346`, `notes:N-5034` and 10 more
-  - "Main concern was parking." (tour note, `notes:N-5035`)
-  - "Asked whether we have reserved parking spots; we don't." (tour note, `notes:N-5346`)
-  - "Loved the space but parking is a dealbreaker for their staff." (inquiry message, `notes:N-5034`)
-- **Quiet space for calls** — falling: 5 this period vs. ~8 per period before. `notes:N-5035`, `notes:N-5034`, `notes:N-5184`, `notes:N-5183`, `notes:N-5420`
-  - "Asked about phone booths for private calls." (tour note, `notes:N-5035`)
-  - "Needs somewhere quiet for calls; worried about noise in the open area." (inquiry message, `notes:N-5034`)
-- **Room to grow** — falling: 4 this period vs. ~7.7 per period before. `notes:N-5346`, `notes:N-5461`, `notes:N-5460`, `notes:N-5040`
-  - "Team is growing to 12 next year; needs room to expand." (tour note, `notes:N-5346`)
-  - "Asked if they can move to a bigger office mid-lease." (tour note, `notes:N-5461`)
+- **Parking** — rising: 11 this period vs. ~6.3 per period before. `notes:N-5156`, `L-1022 (lost reason)`, `notes:N-5257`, `notes:N-5120`, `notes:N-5262` and 6 more
+  - "Loved the space but parking is a dealbreaker for their staff." (inquiry message, `notes:N-5156`)
+  - "No parking for the team" (lost reason, `L-1022 (lost reason)`)
+  - "Main concern was parking." (inquiry message, `notes:N-5257`)
+- **Meeting rooms** — falling: 6 this period vs. ~10.3 per period before. `notes:N-5156`, `notes:N-5052`, `notes:N-5063`, `notes:N-5062`, `notes:N-5219` and 1 more
+  - "Asked how many conference room hours are included." (inquiry message, `notes:N-5156`)
+  - "Needs a meeting room twice a week for client calls." (inquiry message, `notes:N-5052`)
+- **Price and budget** — falling: 4 this period vs. ~7.3 per period before. `notes:N-5262`, `notes:N-5063`, `notes:N-5355`, `notes:N-5219`
+  - "Felt the monthly cost was too much compared with working from home." (inquiry message, `notes:N-5262`)
+  - "Asked twice about the price; said it is above their budget." (tour note, `notes:N-5063`)
+- **Chose an alternative** — falling: 2 this period vs. ~3.3 per period before. `notes:N-5262`, `L-1308 (lost reason)`
+  - "Felt the monthly cost was too much compared with working from home." (inquiry message, `notes:N-5262`)
+  - "Chose a competitor" (lost reason, `L-1308 (lost reason)`)
+- **Room to grow** — falling: 1 this period vs. ~5.7 per period before. `notes:N-5376`
+  - "Team is growing to 12 next year; needs room to expand." (inquiry message, `notes:N-5376`)
 
-Steady: price and budget 14, meeting rooms 6, chose an alternative 5, flexible terms 1.
+Steady: quiet space for calls 8, flexible terms 1.
 
 ### Objections
 
-- **Price and budget**: 10 — "Price too high" (`L-1071 (lost reason)`). `L-1071 (lost reason)`, `L-1144 (lost reason)`, `notes:N-5292`, `L-1195 (lost reason)`, `notes:N-5167` and 5 more
-- **Flexible terms**: 9 — "Lease term too long" (`L-1181 (lost reason)`). `L-1181 (lost reason)`, `notes:N-5207`, `L-1138 (lost reason)`, `notes:N-5459`, `L-1304 (lost reason)` and 4 more
-- **Parking**: 8 — "No parking for the team" (`L-1159 (lost reason)`). `L-1159 (lost reason)`, `notes:N-5221`, `L-1148 (lost reason)`, `L-1128 (lost reason)`, `notes:N-5472` and 3 more
-- **Room to grow**: 6 — "Office too small for growth" (`L-1154 (lost reason)`). `L-1154 (lost reason)`, `notes:N-5359`, `L-1235 (lost reason)`, `L-1315 (lost reason)`, `notes:N-5337` and 1 more
-- **Chose an alternative**: 3 — "Chose a competitor" (`L-1220 (lost reason)`). `L-1220 (lost reason)`, `L-1201 (lost reason)`, `L-1265 (lost reason)`
+- **Price and budget**: 6 — "Lost: Price too high." (`notes:N-5273`). `notes:N-5273`, `L-1193 (lost reason)`, `L-1210 (lost reason)`, `notes:N-5111`, `L-1076 (lost reason)` and 1 more
+- **Flexible terms**: 6 — "Lease term too long" (`L-1177 (lost reason)`). `L-1177 (lost reason)`, `notes:N-5006`, `L-1004 (lost reason)`, `notes:N-5424`, `L-1302 (lost reason)` and 1 more
+- **Chose an alternative**: 4 — "Chose a competitor" (`L-1308 (lost reason)`). `L-1308 (lost reason)`, `L-1130 (lost reason)`, `notes:N-5008`, `L-1005 (lost reason)`
+- **Room to grow**: 3 — "Lost: Office too small for growth." (`notes:N-5066`). `notes:N-5066`, `L-1045 (lost reason)`, `L-1156 (lost reason)`
+- **Parking**: 2 — "No parking for the team" (`L-1022 (lost reason)`). `L-1022 (lost reason)`, `L-1008 (lost reason)`
+- **Quiet space for calls**: 1 — "Lost: went quiet." (`notes:N-5080`). `notes:N-5080`
 
 ### What converted vs. what didn't
 
-Themes in conversations with leads that later committed (14) vs. those that were lost (28).
+Themes in conversations with leads that later committed (11) vs. those that were lost (25).
 
 | Theme | Won leads mentioning | Lost leads mentioning |
 |---|---|---|
-| Price and budget | 1 (7%) | 10 (36%) |
-| Chose an alternative | 0 (0%) | 7 (25%) |
-| Parking | 2 (14%) | 10 (36%) |
-| Quiet space for calls | 7 (50%) | 8 (29%) |
-| Meeting rooms | 3 (21%) | 12 (43%) |
-| Room to grow | 4 (29%) | 5 (18%) |
+| Parking | 0 (0%) | 12 (48%) |
+| Chose an alternative | 0 (0%) | 5 (20%) |
+| Quiet space for calls | 2 (18%) | 8 (32%) |
+| Room to grow | 4 (36%) | 6 (24%) |
+| Price and budget | 2 (18%) | 7 (28%) |
+| Meeting rooms | 5 (45%) | 10 (40%) |
 
-**Confidence: low** — smallest compared group has 14 leads; observational, not a controlled test. A theme showing up more among won leads is a lead for a test, not proof that it causes commitment.
+**Confidence: low** — smallest compared group has 11 leads; observational, not a controlled test. A theme showing up more among won leads is a lead for a test, not proof that it causes commitment.
 
 ### Open questions
 
@@ -110,18 +109,18 @@ Themes in conversations with leads that later committed (14) vs. those that were
 
 ## No matching segment
 
-Parking came up 6 times in the last 30 days (about 1.3 per period before).
+Parking came up 4 times in the last 30 days (about 2.3 per period before).
 
-Signals in the last 30 days: **12** (review 12). Baseline: 28 over the 3 periods before.
+Signals in the last 30 days: **5** (review 5). Baseline: 35 over the 3 periods before.
 
 ### Rising pains and language
 
-- **Parking** — rising: 6 this period vs. ~1.3 per period before. `notes:R-13`, `notes:R-26`, `notes:R-15`, `notes:R-32`, `notes:R-21` and 1 more
-  - "Parking is impossible after 9am." (review, `notes:R-13`)
-- **Flexible terms** — rising: 3 this period vs. ~0.7 per period before. `notes:R-2`, `notes:R-10`, `notes:R-3`
-  - "Flexible month to month plans made it easy to start." (review, `notes:R-2`)
-
-Steady: community and events 1, internet 1, meeting rooms 1, price and budget 1, quiet space for calls 1.
+- **Parking** — rising: 4 this period vs. ~2.3 per period before. `notes:R-36`, `notes:R-9`, `notes:R-15`, `notes:R-8`
+  - "Parking is impossible after 9am." (review, `notes:R-36`)
+- **Internet** — falling: 1 this period vs. ~3 per period before. `notes:R-17`
+  - "Fast internet and quiet phone booths." (review, `notes:R-17`)
+- **Quiet space for calls** — falling: 1 this period vs. ~3 per period before. `notes:R-17`
+  - "Fast internet and quiet phone booths." (review, `notes:R-17`)
 
 ### Objections
 

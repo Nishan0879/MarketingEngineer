@@ -17,7 +17,7 @@ from .control import Control
 from .evidence import refs_md
 from .ledger import Ledger, LeadState, iso
 from .workspace import Workspace
-from ..engines.conversion import cold_audit
+from ..engines.conversion import cold_audit, reengage
 
 NORTH_STAR_METRICS = ("commits", "commit_value")
 
@@ -163,6 +163,17 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
     if new_insights:
         decisions.append(f"Review {len(new_insights)} new insight record(s) in `customer-truth/insights/` "
                          f"(keep, reword or retire): {', '.join(new_insights)}")
+    drafts = reengage.summary_counts(ws)
+    if drafts["pending"]:
+        decisions.append(f"Review {drafts['pending']} pending re-engagement draft(s): `mefw drafts list`")
+    if drafts["approved"]:
+        decisions.append(f"Send {drafts['approved']} approved draft(s) from your own tool, then mark them "
+                         "`mefw drafts sent`")
+    record = reengage.track_record(ws)
+    if record["meets_threshold"]:
+        decisions.append(f"`{reengage.AGENT}` has {record['streak']} unedited approvals in a row over "
+                         f"{record['streak_days']} days, the Section 11.2 bar for Level 2. Promote only with a "
+                         "written playbook of what it may send, and note it in the agent's change log.")
     ctl = Control(ws.control_path).load()
     if ctl.get("client"):
         decisions.append(f"The whole client is paused ({ctl['client'].get('reason')}). Resume when ready.")

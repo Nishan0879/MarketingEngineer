@@ -1,0 +1,32 @@
+# Example approved facts for a fictional coworking space that also leases offices.
+# Replace every one of these with facts the client has actually approved.
+
+[facts.tour_booking]
+text = "You can book a tour any weekday, and it takes about 20 minutes."
+approved_by = "Example owner"
+approved_on = "2026-10-20"
+
+[facts.month_to_month]
+text = "Memberships are month to month, with no long-term contract."
+segments = ["members"]
+approved_by = "Example owner"
+approved_on = "2026-10-20"
+
+[facts.day_pass]
+text = "You're welcome to try a day pass before deciding."
+segments = ["members"]
+approved_by = "Example owner"
+approved_on = "2026-10-20"
+
+[facts.office_parking]
+text = "Office tenants can reserve parking spaces in the garage next door."
+segments = ["offices"]
+approved_by = "Example owner"
+approved_on = "2026-10-20"
+expires_on = "2027-03-31"
+
+[facts.office_flex]
+text = "Private offices are available on 6- or 12-month terms, and teams can move to a larger office as they grow."
+segments = ["offices"]
+approved_by = "Example owner"
+approved_on = "2026-10-20"
