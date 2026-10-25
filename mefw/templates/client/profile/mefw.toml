@@ -1,0 +1,74 @@
+# Machine-readable settings for this client. The human-readable profile is
+# business-profile.md next to this file; keep the two in step.
+
+[client]
+id = "{client_id}"
+timezone = "UTC"
+
+[funnel]
+# Typical days from inquiry to commitment. Leads older than this should have a
+# won/lost outcome reported (Section 7).
+cycle_days = 30
+
+# Map the client's own stage names (as they appear in their lead-tracking
+# tool) onto the universal funnel. Matching ignores case.
+[funnel.stages]
+inquire = ["New", "New Inquiry", "Lead"]
+qualify = ["Qualified", "Contacted - Qualified"]
+meet    = ["Tour Booked", "Tour Completed", "Consult", "Demo", "Meeting"]
+commit  = ["Signed", "Won", "Closed Won"]
+retain  = ["Renewed"]
+
+# Agents allowed to run for this client. An agent with no spec file does not run.
+[agents.cold-inquiry-auditor]
+engine = "conversion"
+level = 0                     # 0 observe, 1 draft, 2 act within a playbook, 3 act with a budget
+spec = "agents/cold-inquiry-auditor.md"
+max_actions_per_day = 5
+max_consecutive_errors = 2    # after this many failures in a row the agent is paused
+
+[conversion.cold_audit]
+lookback_days = 180
+cold_after_days = 14          # no activity for this long = cold
+slow_response_hours = 24      # a first response slower than this counts as slow
+min_followups = 3             # fewer outbound touches than this = gave up early
+min_group_size = 10           # below this, comparisons say "not enough evidence"
+response_buckets_minutes = [5, 60, 1440]
+max_candidates = 25
+
+# CSV export from the client's lead-tracking tool. Map only the columns listed
+# below. Never map names, emails, phone numbers or other personal data: the
+# importer refuses them, and they stay in the client's own tool.
+[adapters.csv]
+source = "crm"
+
+[adapters.csv.columns]
+ref               = "Lead ID"
+inquired_at       = "Created At"
+channel           = "Source"
+segment           = "Segment"
+value             = "Value"
+first_response_at = "First Response At"
+last_outbound_at  = "Last Outbound At"
+last_inbound_at   = "Last Inbound At"
+outbound_count    = "Outbound Count"
+stage             = "Stage"
+outcome           = "Status"
+outcome_at        = "Closed At"
+lost_reason       = "Lost Reason"
+
+# Columns holding the date a stage was reached, keyed by the client's stage name.
+[adapters.csv.stage_dates]
+"Qualified"   = "Qualified At"
+"Tour Booked" = "Tour Booked At"
+
+[adapters.csv.outcome_values]
+won  = ["Won", "Signed", "Closed Won"]
+lost = ["Lost", "Closed Lost", "Dead"]
+
+# Optional second export with one row per message or call.
+[adapters.csv.activities]
+ref = "Lead ID"
+at = "Timestamp"
+direction = "Direction"
+out_values = ["out", "outbound", "sent"]

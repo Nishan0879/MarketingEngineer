@@ -1,0 +1,19 @@
+[project]
+name = "mefw"
+version = "0.1.0"
+description = "MarketingEngineerFW: core guardrails and engines for running lead-based marketing with AI agents"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+mefw = "mefw.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["mefw*"]
+
+[tool.setuptools.package-data]
+mefw = ["templates/client/**/*", "templates/client/**/.gitkeep", "templates/client/gitignore"]
