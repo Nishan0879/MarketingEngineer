@@ -18,6 +18,7 @@ from .evidence import refs_md
 from .ledger import Ledger, LeadState, iso
 from .workspace import Workspace
 from ..engines.content import briefs as content
+from ..engines.search import analysis as search_analysis, data as search_data, pages as search_pages
 from ..engines.conversion import cold_audit, first_response, queue, reengage
 
 NORTH_STAR_METRICS = ("commits", "commit_value")
@@ -198,6 +199,26 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
     if unpublished:
         decisions.append(f"Publish {len(unpublished)} approved content brief(s) ({', '.join(unpublished)}), then "
                          "record each with `mefw content published`")
+    search_waiting = [m["id"] for _, m, _ in search_pages.all_drafts(ws) if m["status"] == "draft"]
+    if search_waiting:
+        decisions.append(f"Review {len(search_waiting)} search draft(s) ({', '.join(search_waiting)}), then "
+                         "`mefw search approve <id>`")
+    search_approved = [m["id"] for _, m, _ in search_pages.all_drafts(ws) if m["status"] == "approved"]
+    if search_approved:
+        decisions.append(f"Put {len(search_approved)} approved search draft(s) on the site "
+                         f"({', '.join(search_approved)}), then record each with `mefw search published`")
+    try:
+        pb = search_data.load_playbook(ws)
+    except FileNotFoundError:
+        pb = None
+    if pb:
+        for lst in search_analysis.listings(ws, pb, end.date()):
+            if lst["problems"]:
+                decisions.append(f"Fix the {lst['label']} listing: " + "; ".join(lst["problems"]))
+        due = search_data.ai_due(ws, pb, end)
+        if due:
+            decisions.append(f"Run {len(due)} AI assistant check(s) and record them with `mefw search ai-record` "
+                             "(the list is in the latest search report)")
     for agent in (first_response.AGENT, reengage.AGENT):
         record = queue.track_record(ws, agent)
         if record["meets_threshold"]:

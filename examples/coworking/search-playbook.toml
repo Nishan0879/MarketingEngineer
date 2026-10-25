@@ -1,0 +1,55 @@
+# Example search visibility playbook for a fictional coworking space that also
+# leases offices. Copy to engines/search/playbook.toml and make it the client's.
+
+[search]
+brand_terms = ["example coworking"]
+min_impressions = 10
+must_include = []
+max_query_repeats = 2
+refresh_days = 90
+listing_check_days = 90
+ai_check_days = 30
+search_channels = ["Google Business"]
+
+[search.intent]
+high   = ["near me", "for rent", "to rent", "lease", "price", "pricing", "cost", "tour", "book", "available"]
+medium = ["best", "vs", "compare", "reviews", "how much", "cheap", "monthly"]
+
+[search.topics.private_offices]
+label = "Private offices"
+keywords = ["private office", "office space", "office for rent", "small office"]
+
+[search.topics.coworking]
+label = "Coworking membership"
+keywords = ["coworking", "co-working", "hot desk", "dedicated desk", "shared office"]
+
+[search.pages."/"]
+label = "Home"
+topics = ["coworking"]
+
+[search.pages."/offices"]
+label = "Private offices"
+topics = ["private_offices", "growth", "contract"]
+
+[search.pages."/visit"]
+label = "Book a tour"
+topics = ["booking"]
+
+[search.listings.google]
+label = "Google Business Profile"
+checked_on = "2026-09-15"
+
+[search.listings.google.fields.booking]
+fact = "tour_booking"
+says = "You can book a tour any weekday, and it takes about 20 minutes."
+
+[search.listings.google.fields.parking]
+fact = "office_parking"
+says = "Free parking for all members."
+
+[search.ai]
+assistants = ["ChatGPT", "Claude", "Gemini", "Perplexity"]
+
+[search.ai.prompts]
+best_coworking = "What's the best coworking space in Example City?"
+office_for_team = "Where can a team of six rent a private office in Example City?"

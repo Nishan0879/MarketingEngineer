@@ -1,0 +1,48 @@
+# Search visibility playbook, written and owned by the operator (Section 9.5).
+# Topics come from [first_response.topics] in engines/conversion/playbook.toml,
+# plus any added below. Answers come only from approved facts tagged with the
+# topic (`topics = [...]` in profile/approved-facts.toml).
+
+[search]
+brand_terms = []              # queries containing these are your own name; reported apart
+min_impressions = 10          # ignore queries seen fewer times than this
+must_include = []             # text every published draft must contain
+max_query_repeats = 2         # a search phrase used more often than this in one draft is keyword stuffing
+refresh_days = 90             # at most one draft per topic in this window
+listing_check_days = 90       # listings not checked for this long are flagged
+ai_check_days = 30            # how often to ask the AI assistants again
+search_channels = []          # lead tool channel values that mean "came from search", e.g. ["Google", "Organic search"]
+
+# Words that show someone is ready to act. Matched as whole words.
+[search.intent]
+high   = ["near me", "for rent", "to rent", "lease", "price", "pricing", "cost", "tour", "book", "available"]
+medium = ["best", "vs", "compare", "reviews", "how much", "cheap", "monthly"]
+
+# Extra topics people search for that aren't first-response questions.
+# [search.topics.private_offices]
+# label = "Private offices"
+# keywords = ["private office", "office space", "office for rent"]
+
+# Pages that already exist and the topics each one answers. A topic with no
+# page here is drafted as a new FAQ entry or page.
+# [search.pages."/pricing"]
+# label = "Pricing"
+# topics = ["price"]
+
+# Listings (Google Business Profile, directories) and what they say now. You
+# check them by hand and set checked_on; each field names the approved fact it
+# must match.
+# [search.listings.google]
+# label = "Google Business Profile"
+# checked_on = "2026-10-01"
+# [search.listings.google.fields.booking]
+# fact = "tour_booking"
+# says = "You can book a tour any weekday."
+
+# Questions to ask AI assistants each month. Record each answer with
+# `mefw search ai-record --assistant ChatGPT --prompt best_in_city --mentioned yes|no [--cited <url>]`.
+[search.ai]
+assistants = ["ChatGPT", "Claude", "Gemini", "Perplexity"]
+
+[search.ai.prompts]
+# best_in_city = "What's the best <what you sell> in <your city>?"
