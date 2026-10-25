@@ -19,12 +19,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import tomllib
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from . import metrics
 from .evidence import confidence
+from .frontmatter import dump, load
 from .ledger import LeadState, Ledger, iso, parse_ts
 from .workspace import ALL, Workspace
 
@@ -42,29 +42,6 @@ DEFAULTS = {"comparison": "before_after", "baseline_days": 60, "min_window_days"
 
 
 # Files
-
-def _dump_value(v) -> str:
-    if isinstance(v, bool):
-        return "true" if v else "false"
-    if isinstance(v, (int, float)):
-        return repr(v)
-    if isinstance(v, list):
-        return "[" + ", ".join(_dump_value(x) for x in v) + "]"
-    return json.dumps(str(v), ensure_ascii=False)  # JSON string escapes are valid TOML basic strings
-
-
-def dump(meta: dict, body: str) -> str:
-    lines = ["+++"] + [f"{k} = {_dump_value(v)}" for k, v in meta.items() if v is not None] + ["+++", ""]
-    return "\n".join(lines) + body.lstrip("\n")
-
-
-def load(path: Path) -> tuple[dict, str]:
-    text = path.read_text()
-    m = re.match(r"\+\+\+\n(.*?)\n\+\+\+\n", text, re.S)
-    if not m:
-        raise ValueError(f"{path.name} has no +++ front matter")
-    return tomllib.loads(m.group(1)), text[m.end():]
-
 
 def all_briefs(ws: Workspace) -> list[tuple[Path, dict, str]]:
     out = []

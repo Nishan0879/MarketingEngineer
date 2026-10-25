@@ -1,0 +1,13 @@
+# Approved facts: the only business information agents may use in claims
+# (Section 11.4, rule 1). One table per fact. Agents refer to facts by key,
+# e.g. {fact:tour_booking} in a playbook template. A fact needs approved_by
+# and approved_on; past expires_on it can't be used.
+#
+# [facts.tour_booking]
+# text = "You can book a tour any weekday between 9am and 5pm."
+# segments = []                 # empty = every segment
+# approved_by = "Client owner"
+# approved_on = "2026-10-20"
+# expires_on = "2027-01-31"     # optional
+
+[facts]

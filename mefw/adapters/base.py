@@ -30,6 +30,7 @@ class LeadRecord:
     outcome: str | None = None                 # won | lost | None
     outcome_at: datetime | None = None
     lost_reason: str | None = None
+    opted_out: bool = False                    # the tool says this person asked not to be contacted
 
 
 class LeadSource(Protocol):
@@ -78,6 +79,14 @@ def import_records(ws: Workspace, ledger: Ledger, source: LeadSource) -> ImportR
                 known = [r.inquired_at, *(t for t, _ in r.touches), *r.stage_dates.values()]
                 rep.new_events += add("stage", max(known), stage=canonical,
                                       detail="date not exported; taken from latest activity")
+
+        if r.opted_out:
+            # The export rarely says when; use the latest activity so the opt-out is never missed.
+            known = [r.inquired_at, *(t for t, _ in r.touches), *r.stage_dates.values()]
+            if r.outcome_at:
+                known.append(r.outcome_at)
+            rep.new_events += add("consent", max(known), value="opted_out",
+                                  detail="from lead export; date not exported")
 
         if r.outcome in ("won", "lost"):
             at = r.outcome_at or max([r.inquired_at, *(t for t, _ in r.touches)])

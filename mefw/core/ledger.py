@@ -20,7 +20,8 @@ from pathlib import Path
 from .pii import scrub
 from .workspace import FUNNEL
 
-EVENT_KINDS = ("inquired", "touch_in", "touch_out", "stage", "outcome")
+EVENT_KINDS = ("inquired", "touch_in", "touch_out", "stage", "outcome", "consent")
+CONSENT = ("opted_out", "opted_in")
 # Kinds of customer signal (Section 8.2). lost_reason is derived from outcomes, not imported.
 SIGNAL_KINDS = ("inquiry_message", "call_note", "tour_note", "lost_note", "review",
                 "ticket", "survey", "social", "other")
@@ -132,6 +133,7 @@ class LeadState:
     outcome: str | None = None  # won | lost | None (open)
     outcome_at: datetime | None = None
     lost_reason: str | None = None
+    opted_out: bool = False  # never contact (Section 11.4, rule 3)
 
     @property
     def furthest_stage(self) -> str | None:
@@ -191,6 +193,8 @@ class Ledger:
             raise ValueError(f"Unknown funnel stage {stage!r}")
         if kind == "outcome" and value not in OUTCOMES:
             raise ValueError(f"Outcome must be one of {OUTCOMES}")
+        if kind == "consent" and value not in CONSENT:
+            raise ValueError(f"Consent must be one of {CONSENT}")
         cur = self.db.execute(
             """INSERT OR IGNORE INTO lead_events
                (lead_id, kind, at, stage, value, detail, source, recorded_at)
@@ -243,6 +247,8 @@ class Ledger:
                     s.first_response_at = t
             elif kind == "stage":
                 s.stages.setdefault(stage, t)
+            elif kind == "consent":
+                s.opted_out = value == "opted_out"
             elif kind == "outcome":
                 if value == "reopened":
                     s.outcome, s.outcome_at, s.lost_reason = None, None, None

@@ -1,0 +1,67 @@
+# Example re-engagement playbook for a coworking space that also leases offices.
+# Placeholders are {fact:key} from approved-facts.toml only.
+
+[reengage]
+must_include = ["If you'd rather not hear from us, just reply and let us know."]
+
+[reengage.never_responded]
+subject = "Sorry we missed your message"
+body = """Hi there,
+
+You got in touch a while ago and we never replied. That's on us, and I'm sorry.
+
+If you're still looking for a place to work, {fact:tour_booking}
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.never_responded.by_segment.offices]
+subject = "Sorry we missed your message about an office"
+body = """Hi there,
+
+You asked us about an office for your team and we never replied. That's on us, and I'm sorry.
+
+{fact:office_flex} {fact:office_parking} {fact:tour_booking}
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.ball_in_our_court]
+subject = "Following up on your question"
+body = """Hi there,
+
+You wrote back to us and we let it slip. Sorry about that.
+
+Reply here with anything you'd still like to know and I'll answer it properly. {fact:tour_booking}
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.slow_first_response]
+subject = "Still looking for a place to work?"
+body = """Hi there,
+
+We were slow to get back to you when you first reached out. {fact:month_to_month} {fact:day_pass}
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.slow_first_response.by_segment.offices]
+subject = "Still looking for an office?"
+body = """Hi there,
+
+We were slow to get back to you about an office. {fact:office_flex} {fact:office_parking}
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.few_followups]
+subject = "Checking in"
+body = """Hi there,
+
+I wanted to check in once more in case the timing is better now. {fact:month_to_month} {fact:tour_booking}
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[reengage.few_followups.by_segment.offices]
+subject = "Checking in about an office"
+body = """Hi there,
+
+Checking in once more in case the timing is better now. {fact:office_parking} {fact:tour_booking}
+
+If you'd rather not hear from us, just reply and let us know."""

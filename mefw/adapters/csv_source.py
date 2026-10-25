@@ -19,8 +19,9 @@ from .base import LeadRecord
 LEAD_FIELDS = (
     "ref", "inquired_at", "channel", "segment", "value", "first_response_at",
     "last_outbound_at", "last_inbound_at", "outbound_count", "stage",
-    "outcome", "outcome_at", "lost_reason",
+    "outcome", "outcome_at", "lost_reason", "opted_out",
 )
+TRUTHY = {"1", "true", "yes", "y", "x", "opted out", "unsubscribed", "do not contact", "dnc"}
 
 
 class CsvSource:
@@ -112,4 +113,5 @@ class CsvSource:
                     outcome=self._outcome(self._get(row, "outcome")),
                     outcome_at=parse_ts(self._get(row, "outcome_at")),
                     lost_reason=self._get(row, "lost_reason"),
+                    opted_out=(self._get(row, "opted_out") or "").lower() in TRUTHY,
                 )

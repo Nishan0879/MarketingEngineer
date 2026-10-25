@@ -170,6 +170,7 @@ def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
             "Last Inbound At": fmt(max(ins) if ins else None), "Outbound Count": len(outs),
             "Stage": stage, "Qualified At": fmt(qualified_at), "Tour Booked At": fmt(tour_at),
             "Status": status, "Closed At": fmt(closed_at), "Lost Reason": lost_reason,
+            "Do Not Contact": "Yes" if random.random() < 0.04 else "",
         })
         acts += [{"Lead ID": ref, "Timestamp": fmt(t), "Direction": "outbound" if d == "out" else "inbound"}
                  for t, d in touches]
@@ -190,6 +191,13 @@ def main(out_dir: Path, n: int = 320, seed: int = 7) -> None:
                 else f"Lost: {lost_reason or 'went quiet'}."
             signals.append({"Note ID": f"N-{note_id}", "Type": "lost", "Date": fmt(closed_at), "Lead ID": ref,
                             "Segment": segment, "Text": text})
+
+    # One prospect is upset; drafts must route them to a human instead.
+    note_id += 1
+    upset = next(l for l in leads if l["Status"] == "Open" and not l["First Response At"])
+    signals.append({"Note ID": f"N-{note_id}", "Type": "inquiry", "Date": upset["Created At"],
+                    "Lead ID": upset["Lead ID"], "Segment": upset["Segment"],
+                    "Text": "Second time asking. Nobody answers the phone; I want to make a complaint."})
 
     for j in range(40):
         at = AS_OF - timedelta(days=random.uniform(0, 120))
