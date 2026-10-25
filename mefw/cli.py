@@ -21,6 +21,7 @@ from .core.ledger import Ledger, iso, parse_ts
 from .core.runner import Runner
 from .core.workspace import Workspace
 from .engines.content import briefs as content
+from .engines.creative import plans as creative, results as creative_results
 from .engines.outbound import drafts as outbound, signals as outbound_signals
 from .engines.search import analysis as search_analysis, data as search_data, pages as search_pages
 from .engines.conversion import cold_audit, first_response, queue, reengage
@@ -498,6 +499,95 @@ def cmd_outbound(args) -> int:
     log.append(args.by, f"outbound_{args.action}", "ok", {"id": getattr(args, "id", None) or args.company},
                {"summary": msg})
     return 0
+
+
+def cmd_creative(args) -> int:
+    ws = _ws(args)
+    at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
+
+    if args.action == "plan":
+        runner = Runner(ws)
+        made, refused = [], None
+        try:
+            cands, passed = creative.candidates(ws, at, runner.ledger)
+            for c in cands[: args.max]:
+                try:
+                    res = runner.run(creative.AGENT, "creative_plan", "draft", f"creative:{c['insight']}:{at.date()}",
+                                     lambda c=c: _creative_job(ws, c, at), {"insight": c["insight"]})
+                except GuardrailError as e:
+                    refused = str(e)
+                    break
+                if res.status == "ok":
+                    made.append(res.output["id"])
+            if refused is None:
+                key = f"creative-results:{at.isoformat()}"
+                res = runner.run(creative.AGENT, "creative_results", "observe", key,
+                                 lambda: _creative_results_job(ws, runner.ledger, at), {"at": iso(at)})
+        finally:
+            runner.close()
+        print(f"Wrote {len(made)} creative test plan(s)" + (": " + ", ".join(made) if made else "."))
+        if passed:
+            print("Not enough evidence yet for: " + ", ".join(passed))
+        if refused:
+            print(f"Stopped: {refused}", file=sys.stderr)
+            return 2
+        if res.output.get("report"):
+            print(f"Results: {ws.root / res.output['report']}")
+        return 0
+
+    if args.action == "list":
+        for _, m, _ in creative.all_plans(ws):
+            keys = m.get("live_variants") or [v["key"] for v in m["variants"]]
+            extra = f"  winner={m['winner']}" if m.get("winner") else ""
+            print(f"{m['id']}  {m['status']:<9} variants={','.join(keys)}{extra}")
+        return 0
+
+    if args.action == "results":
+        ledger = Ledger(ws.db_path, ws.client_id)
+        try:
+            _, measured = creative_results.write_report(ws, ledger, at)
+            print(creative_results.render(ws, measured, at))
+        finally:
+            ledger.close()
+        return 0
+
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    if args.action == "approve":
+        meta = creative.approve(ws, args.id, args.by, at, args.quote_permission)
+        msg = f"Approved {meta['id']}: variants {', '.join(k.upper() for k in meta['live_variants'])}"
+        print(f"{msg}. Build the ads with each variant's tag, set the budgets yourself, then "
+              f"`mefw creative start {meta['id']}`.")
+    elif args.action == "start":
+        meta = creative.start(ws, args.id, args.by, at)
+        msg = f"Started {meta['id']}"
+        print(f"{msg}. Import the ad platform's numbers with `mefw creative results-import {meta['id']} <file>`.")
+    elif args.action == "results-import":
+        snap = creative_results.import_results(ws, args.id, Path(args.file), at)
+        spend = sum(v["spend"] for v in snap["variants"].values())
+        msg = f"Imported results for {args.id}: {spend:g} spent"
+        print(msg + (f"; {snap['unmatched_rows']} row(s) matched no variant tag" if snap["unmatched_rows"] else "")
+              + ".")
+    else:
+        ledger = Ledger(ws.db_path, ws.client_id)
+        try:
+            meta = creative_results.close(ws, ledger, args.id, args.winner, args.lesson, args.by, at)
+        finally:
+            ledger.close()
+        msg = f"Closed {meta['id']}: winner {meta['winner']}"
+        print(msg + (f". Added to {creative.WINNERS}." if meta["winner"] != "none" else "."))
+    log.append(args.by, f"creative_{args.action.replace('-', '_')}", "ok", {"id": args.id}, {"summary": msg})
+    return 0
+
+
+def _creative_job(ws: Workspace, c: dict, at: datetime) -> dict:
+    meta = creative.make_plan(ws, c, at)
+    return {"summary": f"Creative test plan {meta['id']} for {c['insight']}", "id": meta["id"]}
+
+
+def _creative_results_job(ws: Workspace, ledger: Ledger, at: datetime) -> dict:
+    rel, measured = creative_results.write_report(ws, ledger, at)
+    return {"summary": f"{len(measured)} running test(s) measured", "report": rel}
 
 
 def _outbound_job(ws: Workspace, a: dict, at: datetime) -> dict:
@@ -991,6 +1081,37 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--by", default=OPERATOR)
     c.add_argument("--at")
     sp.set_defaults(fn=cmd_search)
+
+    sp = sub.add_parser("creative", help="creative testing: plans from confirmed insights, checks, results by cost")
+    rsub = sp.add_subparsers(dest="action", required=True)
+    c = with_client(rsub.add_parser("plan", help="plan tests and measure running ones (Level 1)"))
+    c.add_argument("--max", type=int, default=2)
+    c.add_argument("--at")
+    with_client(rsub.add_parser("list", help="creative tests and their state"))
+    c = with_client(rsub.add_parser("results", help="cost per qualified inquiry, meeting and commitment"))
+    c.add_argument("--at")
+    c = with_client(rsub.add_parser("approve", help="check the written variants and the budget plan"))
+    c.add_argument("id")
+    c.add_argument("--quote-permission", action="store_true",
+                   help="you have permission from anyone quoted in the ads")
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(rsub.add_parser("start", help="record that the ads are live"))
+    c.add_argument("id")
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(rsub.add_parser("results-import", help="import the ad platform's export (totals to date)"))
+    c.add_argument("id")
+    c.add_argument("file")
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    c = with_client(rsub.add_parser("close", help="make the call and record the lesson"))
+    c.add_argument("id")
+    c.add_argument("--winner", required=True, help="the variant letter, or none")
+    c.add_argument("--lesson", required=True)
+    c.add_argument("--by", default=OPERATOR)
+    c.add_argument("--at")
+    sp.set_defaults(fn=cmd_creative)
 
     sp = sub.add_parser("outbound", help="outbound signals: import triggers, score, draft, send by hand, learn")
     osub = sp.add_subparsers(dest="action", required=True)

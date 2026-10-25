@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.12.0 — 2026-10-25
+- Creative testing engine (Section 9.4), set up in `engines/creative/playbook.toml`. With it, all five engines in Section 9 are built.
+- New Level 1 agent `creative-tester` and `mefw creative plan`. It plans a test for each insight that has shown it resonates (the content engine's evidence bar), one at a time per insight. A plan includes:
+  - the hypothesis, audience and customers' words
+  - the facts that may be claimed
+  - past winners for that audience
+  - a budget plan under `max_test_budget`, and stop rules
+  - one tagged section per variant
+- `mefw creative approve` needs at least two variants and blocks:
+  - unapproved claims and banned language
+  - sensitive-data requests and missing required text
+  - misleading imagery or urgency, and invented results
+  - quotations without permission
+  - a plan over the budget cap
+- The operator builds the ads and sets the budgets; nothing here spends or moves money. `mefw creative start` records the launch.
+- `mefw creative results-import` reads the ad platform export to date, matching rows to variants by tag. The results combine spend with tagged inquiries from the ledger into cost per qualified inquiry, meeting and commitment. Click rate is an early hint only.
+- Suggested verdicts follow the directional learning rules: too early, keep the lowest cost per meeting, stop a variant early, or pause when spend is over budget.
+- `mefw creative close` records the winner and the lesson in `engines/creative/winners.md`, which the next plan for that audience shows.
+- The cockpit lists plans to write, tests to start, results to import, variants to pause and tests ready to close. The scheduler runs the agent weekly.
+- `content.candidates` takes an optional set of insights to skip, so the creative engine shares the content engine's evidence bar.
+
 ## 0.11.0 — 2026-10-25
 - Outbound signal engine (Section 9.2): Watch → Enrich → Score → Send → Learn, set up in `engines/outbound/playbook.toml`.
 - `mefw outbound import` reads company trigger events (hiring, moving, a lease ending, funding, a new business, and others). It keeps company data only: personal-data columns are refused and text is scrubbed. Events are append-only and never imported twice.
