@@ -105,6 +105,21 @@ Nothing is sent by the system:
 
 `mefw drafts record` tracks the Section 11.2 bar for Level 2 for each agent: 20 approvals in a row without edits over at least 2 weeks. The cockpit flags it when it's met, and lists first responses still waiting with how long the oldest lead has waited. Promotion still needs your sign-off.
 
+## Content briefs (content engine, Level 1)
+
+The content engine (Section 9.1) turns one customer insight into posts for several channels, and only once the insight has shown it resonates. `mefw content briefs` (agent `content-brief-writer`) writes a brief for each insight record you've set to `confirmed` or `acted on` that has at least `min_evidence` signals (default 5) and no brief in the last `refresh_days` (default 60). It doesn't write the posts. It gives whoever does (you, the founder or a writing model) what they need:
+
+- the insight, and what customers said, in their words, with contact details scrubbed
+- the approved facts usable for that segment, and nothing else to claim
+- the angles and per-channel guidance from `engines/content/playbook.toml`, with an empty section per channel
+- a tracking tag (`mefw-<insight>`) to put in every link as `utm_campaign`
+
+Briefs go to `engines/content/briefs/C-YYYYMMDD-<insight>.md`. Write in the channel sections you want to publish, then run `mefw content approve <id>`. Every written section goes through the same checks as drafts: claims must come from approved facts for the segment, and banned phrases, requests for sensitive data and missing required text are blocked. A quotation that looks like a customer's words is also blocked unless you pass `--quote-permission`, because the engine never invents or borrows testimonials.
+
+You publish it yourself, then record it with `mefw content published <id> --channel linkedin --url <link>`. Map your lead tool's campaign or UTM column (`campaign = "UTM Campaign"` under `[adapters.csv.columns]`). `mefw content results` then counts the inquiries that came in with each brief's tag since it was published, and how many reached a meeting or were won, against the rest of the segment. The cockpit asks you to write briefs that are waiting and to publish approved ones.
+
+Schedule it with `content-brief-writer = "weekly mon 06:40"`. Settings live under `[content]` in the profile.
+
 ## Running on a schedule
 
 Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"`, `"weekly mon 07:00"` or `"monthly 1 08:00"`. Leave a job out to run it only by hand.
@@ -196,6 +211,7 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `outcome REF won\|lost\|reopened [--reason] [--at]` | Record an outcome by hand |
 | `audit-cold [--as-of]` | Run the cold-inquiry audit (Level 0, contacts nobody) |
 | `pause` / `resume [--engine E \| --agent A]` | Kill switch |
+| `content briefs \| list \| approve \| published \| results` | Content briefs from confirmed insights; approving and recording what's published are the operator's |
 | `report make \| approve` | Draft the monthly client report; approve it to get the shareable HTML |
 | `quality` | Per-agent quality numbers; enforces the error budget |
 | `promote <agent>` / `demote <agent>` | Change an agent's level with your sign-off, or after a serious error |
@@ -212,7 +228,8 @@ All take `--client DIR` (or `$MEFW_CLIENT`).
 mefw/core/          runner, kill switch, activity log, ledger, PII guard, workspace,
                     evidence rules, metrics, customer truth, experiments, cockpit
 mefw/adapters/      lead-source interface, lead CSV adapter, signals CSV adapter
-mefw/engines/conversion/cold_audit.py
+mefw/engines/conversion/   cold-inquiry audit, first-response and re-engagement drafts, the draft queue
+mefw/engines/content/      content briefs, asset checks, publish log, results
 mefw/templates/client/   what `init` copies into a new client workspace
 templates/          the spec's templates (agent spec, experiment brief, ...)
 examples/           sample data generator, coworking profile, sample outputs

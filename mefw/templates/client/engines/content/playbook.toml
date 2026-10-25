@@ -1,0 +1,28 @@
+# Content playbook, written and owned by the operator (Section 9.1).
+# One section per channel the client publishes on; each brief gets a place to
+# write for every channel here. Guidance is shown to the writer, nothing else.
+
+[content]
+# Every published asset must contain these (disclosures, channel rules).
+must_include = []
+
+[content.angles]
+problem   = "Say the problem the way customers say it, then show how it's solved, using approved facts only."
+objection = "Take the most common worry head on and answer it with an approved fact."
+day_in    = "Show what a normal day looks like for the kind of customer in this segment. No invented people."
+
+[content.channels.linkedin]
+label = "LinkedIn post"
+guidance = "120 to 200 words. Open with the customer's problem in their words. One idea. End with one clear next step and the tagged link."
+
+[content.channels.instagram]
+label = "Instagram caption"
+guidance = "Under 80 words, plus a note on the photo or video to use. Real place, real people only with their consent."
+
+[content.channels.email]
+label = "Email newsletter section"
+guidance = "A short heading and 2 to 4 sentences. Link with the tag."
+
+[content.channels.landing_page]
+label = "Landing page FAQ"
+guidance = "The question as customers ask it, and a 1 to 3 sentence answer from approved facts."

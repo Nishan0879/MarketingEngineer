@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.0 — 2026-10-25
+- Content engine (Section 9.1). New Level 1 agent `content-brief-writer` and `mefw content briefs`. It writes a brief per confirmed insight once it has enough evidence (`[content] min_evidence`, default 5), and refreshes it at most every `refresh_days` (default 60). A brief has:
+  - what customers said, in their words, with contact details scrubbed
+  - the approved facts usable for the segment
+  - angles and a section per channel from `engines/content/playbook.toml`
+  - a tracking tag for links
+- `mefw content approve` checks every written asset for unapproved claims, banned language, sensitive data and required text. It blocks quotations unless the operator confirms permission with `--quote-permission`.
+- `mefw content published` records where each approved asset went live. `mefw content results` compares inquiries carrying the brief's tag with the rest of the segment.
+- Leads gain an optional `campaign` field. Map it in the CSV adapter. Existing ledgers are migrated on open.
+- Front matter supports inline tables.
+- The cockpit lists briefs waiting to be written and approved briefs not yet published.
+- Scheduler: `content-brief-writer` runs after customer truth.
+
 ## 0.8.0 — 2026-10-25
 - Per-agent quality numbers (Section 14.3), from `mefw quality` and in the cockpit:
   - runs, and failed, blocked, duplicate and late actions

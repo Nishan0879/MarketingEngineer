@@ -79,6 +79,12 @@ level = 0                     # drafts the report; the operator approves before 
 spec = "agents/client-reporter.md"
 max_actions_per_day = 5
 
+[agents.content-brief-writer]
+engine = "content"
+level = 1                     # writes briefs; a human writes, approves and publishes
+spec = "agents/content-brief-writer.md"
+max_actions_per_day = 10
+
 [agents.first-response-drafter]
 engine = "conversion"
 level = 1                     # drafts only; a human approves and sends
@@ -102,6 +108,7 @@ max_actions_per_day = 25
 import                 = "every 2h"
 first-response-drafter = "every 2h"
 customer-truth-analyst = "daily 06:30"
+content-brief-writer   = "weekly mon 06:40"
 cold-inquiry-auditor   = "weekly mon 06:00"
 re-engagement-drafter  = "weekly mon 06:15"
 experiment-tracker     = "weekly mon 06:30"
@@ -116,6 +123,14 @@ client-reporter        = "monthly 1 08:00"
 leads      = "inbox/leads.csv"
 activities = "inbox/activities.csv"   # optional
 signals    = "inbox/signals.csv"      # optional
+
+# Content engine (Section 9.1). A confirmed insight gets a brief once it has at
+# least min_evidence signals behind it, and a fresh one at most every
+# refresh_days. Links carry utm_campaign=<tag_prefix>-<insight>.
+[content]
+min_evidence = 5
+refresh_days = 60
+tag_prefix   = "mefw"
 
 [conversion.cold_audit]
 lookback_days = 180
@@ -197,6 +212,7 @@ outcome           = "Status"
 outcome_at        = "Closed At"
 lost_reason       = "Lost Reason"
 # opted_out       = "Do Not Contact"   # map this if the export has it; drafts skip opted-out leads
+# campaign        = "UTM Campaign"     # map this to trace inquiries back to content
 
 # Columns holding the date a stage was reached, keyed by the client's stage name.
 [adapters.csv.stage_dates]
