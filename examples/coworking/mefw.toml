@@ -6,6 +6,12 @@ id = "{client_id}"
 # Example profile: a coworking space that also leases private offices.
 timezone = "UTC"
 
+# The one business outcome marketing is judged on (Section 14.1), counted
+# weekly in the cockpit memo. metric: "commits" (number won) or "commit_value".
+[north_star]
+label = "Signed memberships and office leases"
+metric = "commits"
+
 [funnel]
 # Typical days from inquiry to commitment. Leads older than this should have a
 # won/lost outcome reported (Section 7).
@@ -56,6 +62,18 @@ level = 0
 spec = "agents/customer-truth-analyst.md"
 max_actions_per_day = 5
 max_consecutive_errors = 2
+
+[agents.experiment-tracker]
+engine = "core"
+level = 0
+spec = "agents/experiment-tracker.md"
+max_actions_per_day = 20
+
+[agents.growth-cockpit]
+engine = "core"
+level = 0
+spec = "agents/growth-cockpit.md"
+max_actions_per_day = 5
 
 [conversion.cold_audit]
 lookback_days = 180

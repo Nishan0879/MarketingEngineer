@@ -1,6 +1,6 @@
 [project]
 name = "mefw"
-version = "0.2.0"
+version = "0.3.0"
 description = "MarketingEngineerFW: core guardrails and engines for running lead-based marketing with AI agents"
 requires-python = ">=3.11"
 dependencies = []

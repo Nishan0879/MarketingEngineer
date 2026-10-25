@@ -60,6 +60,7 @@ class Config:
     segments: dict[str, Segment] = field(default_factory=dict)
     customer_truth: dict = field(default_factory=dict)
     signals_csv: dict = field(default_factory=dict)
+    north_star: dict = field(default_factory=dict)
 
 
 class Workspace:
@@ -173,6 +174,7 @@ def load_config(path: Path) -> Config:
         segments=segments,
         customer_truth=raw.get("customer_truth", {}),
         signals_csv=raw.get("adapters", {}).get("signals_csv", {}),
+        north_star=raw.get("north_star", {}),
     )
 
 

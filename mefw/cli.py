@@ -14,7 +14,7 @@ from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
 from .adapters.signals_csv import import_signals
 from .core.activity_log import ActivityLog
-from .core import customer_truth, truth_report
+from .core import cockpit, customer_truth, experiments, truth_report
 from .core.control import Control
 from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
@@ -123,6 +123,107 @@ def cmd_truth(args) -> int:
         print(f"Report: {ws.root / res.output['report']}")
     for p in res.output.get("insights", []):
         print(f"Insight: {p}")
+    return 0
+
+
+def _run_agent(ws: Workspace, agent: str, action: str, key: str, job, inputs: dict):
+    """Run one Level 0 job through the runner; returns the RunResult, or None if a guardrail refused it."""
+    runner = Runner(ws)
+    try:
+        return runner.run(agent, action, "observe", key, lambda: job(runner), inputs)
+    except GuardrailError as e:
+        print(f"Refused: {e}", file=sys.stderr)
+        return None
+    finally:
+        runner.close()
+
+
+def cmd_experiment(args) -> int:
+    ws = _ws(args)
+    log = ActivityLog(ws.log_path, ws.client_id)
+    log.verify()
+    at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
+
+    if args.action == "new":
+        ledger = Ledger(ws.db_path, ws.client_id)
+        try:
+            path = experiments.new(
+                ws, ledger, args.name, args.metric, args.hypothesis, at, segment=args.segment,
+                channels=args.channels, comparison=args.comparison, baseline_days=args.baseline_days,
+                min_window_days=args.min_window_days, min_leads=args.min_leads,
+                keep_if=args.keep_if, kill_if=args.kill_if, evidence=args.evidence or "")
+        finally:
+            ledger.close()
+        meta, _ = experiments.load(path)
+        log.append(OPERATOR, "experiment_new", "ok", {"id": meta["id"]},
+                   {"summary": f"Proposed {meta['id']}: {meta['name']}"})
+        print(f"Proposed {meta['id']}: {path.relative_to(ws.root)}")
+        print("Fill in Customer, Evidence, Offer, Assets and Priority score, then `mefw experiment approve`.")
+        return 0
+
+    if args.action == "list":
+        for path, meta, _ in experiments.all_briefs(ws):
+            print(f"{meta['id']}  {meta['status']:<10} {ws.segment_label(meta['segment'])}: {meta['name']}")
+        return 0
+
+    if args.action in ("approve", "start", "stop"):
+        meta = experiments.transition(ws, args.id, args.action, args.by, at)
+        log.append(args.by, f"experiment_{args.action}", "ok",
+                   {"id": meta["id"], "criteria_hash": meta.get("criteria_hash")},
+                   {"summary": f"{meta['id']} is now {meta['status']}"})
+        print(f"{meta['id']} is now {meta['status']}.")
+        return 0
+
+    if args.action == "close":
+        dest = experiments.close(ws, args.id, args.verdict, args.lesson, args.confidence, args.outcome or "",
+                                 args.by, at, next_test=args.next_test or "")
+        log.append(args.by, "experiment_close", "ok", {"id": args.id, "verdict": args.verdict},
+                   {"summary": f"{args.id} closed: {args.verdict} ({args.confidence}). {args.lesson}"})
+        print(f"Closed {args.id} as {args.verdict}; brief moved to {dest.relative_to(ws.root)}, lesson recorded.")
+        return 0
+
+    # measure: one or all running experiments
+    briefs = [experiments.find(ws, args.id)] if args.id else [
+        b for b in experiments.all_briefs(ws) if b[1]["status"] in ("running", "stopped")]
+    if not briefs:
+        print("No running experiments.")
+        return 0
+    status = 0
+    for path, meta, _ in briefs:
+        def job(runner, meta=meta):
+            res = experiments.measure(ws, runner.ledger, meta, at)
+            experiments.log_measurement(ws, meta["id"], res)
+            return {"summary": f"{meta['id']}: suggested {res.get('suggested', 'n/a')} — {res.get('reason', res.get('note', ''))}",
+                    "suggested": res.get("suggested")}
+        key = f"measure:{meta['id']}:{at.date().isoformat()}"
+        res = _run_agent(ws, "experiment-tracker", "experiment_measure", key, job, {"id": meta["id"]})
+        if res is None:
+            status = 2
+            continue
+        print(res.output.get("summary", ""))
+    return status
+
+
+def cmd_cockpit(args) -> int:
+    ws = _ws(args)
+    at = parse_ts(args.as_of) if args.as_of else datetime.now(timezone.utc)
+
+    def job(runner):
+        data = cockpit.build(ws, runner.ledger, at)
+        path = cockpit.write(ws, data)
+        ns = data["north_star"]
+        return {"summary": f"Week {data['week']}: {ns['label']} {ns['this_week']:g} (last week {ns['last_week']:g}); "
+                           f"{len(data['decisions'])} decisions needed", "memo": path}
+
+    res = _run_agent(ws, "growth-cockpit", "cockpit_memo", f"cockpit:{at.isoformat()}", job,
+                        {"as_of": at.isoformat()})
+    if res is None:
+        return 2
+    if res.status == "duplicate":
+        print("Already built for this time; nothing new to do.")
+    print(res.output.get("summary", ""))
+    if res.output.get("memo"):
+        print(f"Memo: {ws.root / res.output['memo']}")
     return 0
 
 
@@ -249,6 +350,11 @@ def cmd_log(args) -> int:
     return 0
 
 
+def metrics_names():
+    from .core.metrics import METRICS
+    return METRICS
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="mefw", description="MarketingEngineerFW operator commands")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -275,6 +381,46 @@ def main(argv: list[str] | None = None) -> int:
     sp = with_client(sub.add_parser("truth", help="update the customer truth file"))
     sp.add_argument("--as-of")
     sp.set_defaults(fn=cmd_truth)
+
+    sp = sub.add_parser("experiment", help="propose, approve, start, measure and close experiments")
+    esub = sp.add_subparsers(dest="action", required=True)
+    e = with_client(esub.add_parser("new", help="propose an experiment brief"))
+    e.add_argument("--name", required=True)
+    e.add_argument("--metric", required=True, choices=list(metrics_names()))
+    e.add_argument("--hypothesis", required=True, help="If we <change>, then <segment> will <behavior>, because <evidence>.")
+    e.add_argument("--segment")
+    e.add_argument("--channels", nargs="*", help="limit the test group to these channels")
+    e.add_argument("--comparison", choices=["before_after", "holdout"])
+    e.add_argument("--baseline-days", type=int)
+    e.add_argument("--min-window-days", type=int)
+    e.add_argument("--min-leads", type=int)
+    e.add_argument("--keep-if", type=float, help="relative improvement to keep, e.g. 0.15")
+    e.add_argument("--kill-if", type=float, help="relative change at or below which to kill, e.g. 0")
+    e.add_argument("--evidence", help="links to the insight records or audit findings behind this")
+    e.add_argument("--at")
+    with_client(esub.add_parser("list", help="list experiments"))
+    for name in ("approve", "start", "stop"):
+        e = with_client(esub.add_parser(name, help=f"{name} an experiment (operator)"))
+        e.add_argument("id")
+        e.add_argument("--by", default=OPERATOR)
+        e.add_argument("--at")
+    e = with_client(esub.add_parser("measure", help="measure running experiments (Level 0 agent)"))
+    e.add_argument("id", nargs="?")
+    e.add_argument("--at")
+    e = with_client(esub.add_parser("close", help="record the operator's verdict"))
+    e.add_argument("id")
+    e.add_argument("--verdict", required=True, choices=["keep", "iterate", "kill", "inconclusive"])
+    e.add_argument("--confidence", required=True, choices=["low", "medium", "high"])
+    e.add_argument("--lesson", required=True)
+    e.add_argument("--outcome", help="the numbers, in one line")
+    e.add_argument("--next-test")
+    e.add_argument("--by", default=OPERATOR)
+    e.add_argument("--at")
+    sp.set_defaults(fn=cmd_experiment)
+
+    sp = with_client(sub.add_parser("cockpit", help="build this week's growth cockpit memo"))
+    sp.add_argument("--as-of")
+    sp.set_defaults(fn=cmd_cockpit)
 
     sp = with_client(sub.add_parser("outcome", help="record a won/lost outcome for a lead"))
     sp.add_argument("ref")
