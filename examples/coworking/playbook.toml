@@ -1,4 +1,4 @@
-# Example re-engagement playbook for a coworking space that also leases offices.
+# Example drafting playbook for a coworking space that also leases offices.
 # Placeholders are {fact:key} from approved-facts.toml only.
 
 [reengage]
@@ -65,3 +65,60 @@ body = """Hi there,
 Checking in once more in case the timing is better now. {fact:office_parking} {fact:tour_booking}
 
 If you'd rather not hear from us, just reply and let us know."""
+
+[first_response]
+must_include = ["If you'd rather not hear from us, just reply and let us know."]
+subject = "Thanks for getting in touch"
+body = """Hi there,
+
+Thanks for reaching out about working with us.
+
+{answers}
+
+{fact:tour_booking} Would a time this week suit you?
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[first_response.by_segment.offices]
+subject = "Your office enquiry"
+body = """Hi there,
+
+Thanks for asking about an office for your team.
+
+{answers}
+
+{fact:tour_booking} Would a time this week suit you?
+
+If you'd rather not hear from us, just reply and let us know."""
+
+[first_response.topics.price]
+label = "Price"
+keywords = ["price", "pricing", "cost", "how much", "budget", "expensive"]
+
+[first_response.topics.parking]
+label = "Parking"
+keywords = ["parking", "garage", "drive in", "drives in"]
+
+[first_response.topics.contract]
+label = "Contract length"
+keywords = ["month-to-month", "month to month", "commitment", "contract", "lease term", "flexible"]
+
+[first_response.topics.growth]
+label = "Room to grow"
+keywords = ["growing", "expand", "bigger office"]
+
+[first_response.topics.meeting_rooms]
+label = "Meeting rooms"
+keywords = ["meeting room", "conference room"]
+
+[first_response.topics.quiet]
+label = "Quiet space for calls"
+keywords = ["quiet", "phone booth", "noise", "private calls"]
+
+[first_response.topics.trial]
+label = "Trying it first"
+keywords = ["day pass", "try it", "trial"]
+
+[first_response.topics.booking]
+label = "Booking a visit"
+keywords = ["tour", "visit", "see the space"]

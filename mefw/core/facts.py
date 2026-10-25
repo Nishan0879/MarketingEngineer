@@ -8,6 +8,7 @@ Facts live in profile/approved-facts.toml, one table per fact:
     approved_by = "Owner name"
     approved_on = "2026-10-20"
     expires_on = "2027-01-31"       # optional; an expired fact can't be used
+    topics = ["price"]              # optional; questions this fact answers in a first response
 
 Agents refer to facts by key. A fact without approval details, or past its
 expiry date, doesn't count.
@@ -32,6 +33,7 @@ class Fact:
     approved_on: str
     expires_on: str | None = None
     segments: list[str] = field(default_factory=list)
+    topics: list[str] = field(default_factory=list)
 
     def problem(self, today: date, segment: str | None = None) -> str | None:
         """Why this fact can't be used right now, or None if it can."""
@@ -55,6 +57,6 @@ def load_facts(ws: Workspace) -> dict[str, Fact]:
         key: Fact(key=key, text=str(f.get("text", "")), approved_by=str(f.get("approved_by", "")),
                   approved_on=str(f.get("approved_on", "")),
                   expires_on=str(f["expires_on"]) if f.get("expires_on") else None,
-                  segments=list(f.get("segments", [])))
+                  segments=list(f.get("segments", [])), topics=list(f.get("topics", [])))
         for key, f in raw.items()
     }

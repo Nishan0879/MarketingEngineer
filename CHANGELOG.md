@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-10-25
+- New Level 1 agent `first-response-drafter` (Section 9.3): drafts the first reply to every open inquiry nobody has answered, longest waiting first, until the lead goes cold.
+- It answers the questions a lead asked only from approved facts tagged with that topic. Topics and their keywords live in `[first_response.topics]` of the playbook; facts get an optional `topics` list.
+- A question with no usable fact becomes an `{answer needed: <topic>}` line that blocks approval until the operator writes the answer, so the agent never guesses. Receipts still apply to what the operator writes.
+- Shared approval queue (`engines/conversion/queue.py`) for every drafting agent. Track records toward Level 2 are kept per agent, and a lead has at most one draft in flight across agents.
+- `mefw drafts make` runs both drafting agents (`--agent` picks one). The cockpit lists first responses waiting and how long the oldest lead has waited.
+
 ## 0.4.0 — 2026-10-25
 - Approved facts as data (`profile/approved-facts.toml`): approver, date, optional expiry and segments.
 - Opt-outs: consent events in the ledger from a do-not-contact column or `mefw opt-out`.

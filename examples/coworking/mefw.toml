@@ -75,6 +75,12 @@ level = 0
 spec = "agents/growth-cockpit.md"
 max_actions_per_day = 5
 
+[agents.first-response-drafter]
+engine = "conversion"
+level = 1                     # drafts only; a human approves and sends
+spec = "agents/first-response-drafter.md"
+max_actions_per_day = 50
+
 [agents.re-engagement-drafter]
 engine = "conversion"
 level = 1                     # drafts only; a human approves and sends
