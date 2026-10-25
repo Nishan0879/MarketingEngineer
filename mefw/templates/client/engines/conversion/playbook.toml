@@ -1,4 +1,6 @@
-# Re-engagement templates, written and owned by the operator.
+# Drafting templates, written and owned by the operator.
+#
+# Re-engagement templates (re-engagement-drafter).
 # One template per reason a lead went cold on our side. Placeholders are
 # {fact:key} only, filled from profile/approved-facts.toml. Anything else that
 # reads as a claim (a price, a number, "free", "guaranteed") is refused unless
@@ -44,3 +46,42 @@ body = """Hi there,
 I wanted to check in once more in case the timing is better now. Happy to answer any questions.
 
 If you'd rather not hear from us, just reply and let us know."""
+
+# First replies to new inquiries (first-response-drafter). {answers} is
+# replaced with approved facts tagged with the topics the lead asked about.
+# A topic with no usable fact becomes an "{answer needed: ...}" line that you
+# must fill in before the draft can be approved; the agent never guesses.
+[first_response]
+must_include = ["If you'd rather not hear from us, just reply and let us know."]
+subject = "Thanks for getting in touch"
+body = """Hi there,
+
+Thanks for reaching out.
+
+{answers}
+
+What would be most helpful to know next?
+
+If you'd rather not hear from us, just reply and let us know."""
+
+# Questions leads commonly ask. Tag approved facts with these names
+# (topics = ["price"]) so the agent can answer them. Edit freely.
+[first_response.topics.price]
+label = "Price"
+keywords = ["price", "pricing", "cost", "how much", "rate", "fee", "budget"]
+
+[first_response.topics.availability]
+label = "Availability"
+keywords = ["available", "availability", "opening", "start date", "move in", "when can"]
+
+[first_response.topics.hours]
+label = "Opening hours"
+keywords = ["hours", "open on", "weekend", "24/7", "after hours"]
+
+[first_response.topics.location]
+label = "Location"
+keywords = ["where are you", "address", "location", "directions", "located"]
+
+[first_response.topics.booking]
+label = "Booking a visit"
+keywords = ["tour", "visit", "viewing", "see the space", "appointment", "come by"]

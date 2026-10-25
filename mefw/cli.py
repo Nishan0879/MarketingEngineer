@@ -20,7 +20,7 @@ from .core.errors import GuardrailError
 from .core.ledger import Ledger, parse_ts
 from .core.runner import Runner
 from .core.workspace import Workspace
-from .engines.conversion import cold_audit, reengage
+from .engines.conversion import cold_audit, first_response, queue, reengage
 
 OPERATOR = "operator"
 
@@ -233,79 +233,51 @@ def cmd_drafts(args) -> int:
     at = parse_ts(args.at) if getattr(args, "at", None) else datetime.now(timezone.utc)
 
     if args.action == "make":
-        runner = Runner(ws)
-        made, blocked, refused, no_template = 0, 0, None, set()
-        try:
-            playbook = reengage.load_playbook(ws)
-            cands, skipped = reengage.candidates(ws, runner.ledger, at)
-            for c in cands:
-                if made >= args.max:
-                    break
-                if reengage.open_draft_for(ws, c.state.lead_id):
-                    continue
-                if reengage.template_for(playbook, c.leak, c.segment) is None:
-                    no_template.add(f"{c.leak} ({c.segment})")
-                    continue
-                try:
-                    res = runner.run(reengage.AGENT, "draft_reengagement", "draft", reengage.today_key(c),
-                                     lambda c=c: _draft_job(ws, c, at), {"lead": c.state.ref, "leak": c.leak})
-                except GuardrailError as e:
-                    refused = str(e)
-                    break
-                if res.status == "ok" and "id" in res.output:
-                    made += 1
-                    blocked += bool(res.output.get("blocking_issues"))
-            for sk in skipped:
-                runner.log.append(reengage.AGENT, "skip_lead", "skipped", {"lead": sk["ref"]},
-                                  {"reason": sk["why"], "receipt": sk.get("receipt")})
-        finally:
-            runner.close()
-        print(f"Drafted {made} message(s) for review ({blocked} need fixes before they can be approved). "
-              f"Skipped {len(skipped)} lead(s): " + (", ".join(f"{s['ref']} ({s['why']})" for s in skipped[:10]) or "none"))
-        if no_template:
-            print("No playbook template for: " + ", ".join(sorted(no_template)))
-        if refused:
-            print(f"Stopped: {refused}", file=sys.stderr)
-            return 2
-        print(f"Review them in {ws.root / reengage.DRAFTS}/")
-        return 0
-
+        status = 0
+        for agent in DRAFTERS if args.agent == "all" else [args.agent]:
+            if agent not in ws.config.agents:
+                print(f"{agent}: not set up in profile/mefw.toml; skipped.")
+                continue
+            status = max(status, _make_drafts(ws, agent, at, args.max))
+        print(f"Review them in {ws.root / queue.DRAFTS}/")
+        return status
     if args.action == "list":
-        for _, meta, _ in reengage.existing_drafts(ws):
+        for _, meta, _ in queue.existing_drafts(ws):
             if args.all or meta["status"] in ("pending", "approved"):
                 flag = " (needs fixes)" if meta.get("blocking_issues") else ""
-                print(f"{meta['id']}  {meta['status']:<9} {meta['lead']:<10} {meta['leak']}{flag}")
+                print(f"{meta['id']}  {meta['status']:<9} {meta['lead']:<10} {queue.situation(meta)}{flag}")
         return 0
 
     if args.action == "record":
-        r = reengage.track_record(ws)
-        print(f"Decided: {r['decided']} (approved unedited {r['approved_unedited']}, edited {r['edited']}, "
-              f"rejected {r['rejected']})")
-        print(f"Current streak of unedited approvals: {r['streak']} over {r['streak_days']} days "
-              f"(Level 2 needs {reengage.PROMOTION_STREAK} over {reengage.PROMOTION_DAYS}+ days, a written "
-              "playbook, and your sign-off)")
+        for agent in DRAFTERS:
+            r = queue.track_record(ws, agent)
+            print(f"{agent}: decided {r['decided']} (approved unedited {r['approved_unedited']}, "
+                  f"edited {r['edited']}, rejected {r['rejected']}); current streak of unedited approvals "
+                  f"{r['streak']} over {r['streak_days']} days")
+        print(f"Level 2 needs {queue.PROMOTION_STREAK} in a row over {queue.PROMOTION_DAYS}+ days, a written "
+              "playbook of what it may send, and your sign-off.")
         return 0
 
     if args.action == "export":
-        path = reengage.export_approved(ws, at)
+        path = queue.export_approved(ws, at)
         print(f"Wrote {path}" if path else "No approved drafts waiting to be sent.")
         return 0
 
     log.verify()
     if args.action == "approve":
-        meta = reengage.approve(ws, args.id, args.by, at)
+        meta = queue.approve(ws, args.id, args.by, at)
         log.append(args.by, "draft_approve", "ok", {"id": meta["id"], "edited": meta["edited"]},
                    {"summary": f"Approved {meta['id']}" + (" after edits" if meta["edited"] else " as drafted")})
         print(f"Approved {meta['id']}" + (" (edited)" if meta["edited"] else "") + ". Send it from your own tool, "
               f"then `mefw drafts sent {meta['id']}`.")
     elif args.action == "reject":
-        meta = reengage.reject(ws, args.id, args.reason, args.by, at)
+        meta = queue.reject(ws, args.id, args.reason, args.by, at)
         log.append(args.by, "draft_reject", "ok", {"id": meta["id"]}, {"reason": args.reason})
         print(f"Rejected {meta['id']}; reason added to rules/corrections.md.")
     elif args.action == "sent":
         ledger = Ledger(ws.db_path, ws.client_id)
         try:
-            meta = reengage.mark_sent(ws, ledger, args.id, args.by, at)
+            meta = queue.mark_sent(ws, ledger, args.id, args.by, at)
         finally:
             ledger.close()
         log.append(args.by, "draft_sent", "ok", {"id": meta["id"], "lead": meta["lead"]},
@@ -314,11 +286,58 @@ def cmd_drafts(args) -> int:
     return 0
 
 
-def _draft_job(ws: Workspace, c, at: datetime) -> dict:
-    meta = reengage.make_draft(ws, c, at)
+# Drafting agents: module, logged action name, and what the operator calls the leads it drafts for.
+DRAFTERS = {
+    first_response.AGENT: (first_response, "draft_first_response", "new inquiries waiting on a first reply"),
+    reengage.AGENT: (reengage, "draft_reengagement", "leads that went cold on our side"),
+}
+
+
+def _make_drafts(ws: Workspace, agent: str, at: datetime, limit: int) -> int:
+    """Run one drafting agent through the runner, one gated action per lead."""
+    mod, action, label = DRAFTERS[agent]
+    runner = Runner(ws)
+    made, blocked, refused, no_template = 0, 0, None, set()
+    try:
+        playbook = queue.load_playbook(ws)
+        cands, skipped = mod.candidates(ws, runner.ledger, at)
+        for c in cands:
+            if made >= limit:
+                break
+            if queue.open_draft_for(ws, c.state.lead_id):
+                continue
+            if not mod.has_template(playbook, c):
+                no_template.add(mod.template_label(c))
+                continue
+            try:
+                res = runner.run(agent, action, "draft", mod.key(c), lambda c=c: _draft_job(ws, mod, c, at),
+                                 {"lead": c.state.ref, "segment": c.segment})
+            except GuardrailError as e:
+                refused = str(e)
+                break
+            if res.status == "ok" and "id" in res.output:
+                made += 1
+                blocked += bool(res.output.get("blocking_issues"))
+        for sk in skipped:
+            runner.log.append(agent, "skip_lead", "skipped", {"lead": sk["ref"]},
+                              {"reason": sk["why"], "receipt": sk.get("receipt")})
+    finally:
+        runner.close()
+    print(f"{agent} ({label}): drafted {made} ({blocked} need fixes before they can be approved). "
+          f"Skipped {len(skipped)}: " + (", ".join(f"{s['ref']} ({s['why']})" for s in skipped[:10]) or "none"))
+    if no_template:
+        print("  No playbook template for: " + ", ".join(sorted(no_template)))
+    if refused:
+        print(f"  Stopped: {refused}", file=sys.stderr)
+        return 2
+    return 0
+
+
+def _draft_job(ws: Workspace, mod, c, at: datetime) -> dict:
+    meta = mod.make_draft(ws, c, at)
     if "skipped" in meta:
         return {"summary": meta["skipped"], "skipped": meta["skipped"]}
-    return {"summary": f"Drafted {meta['id']} for {meta['lead']} ({meta['leak']})", "id": meta["id"],
+    return {"summary": f"Drafted {meta['id']} for {meta['lead']} ({queue.situation(meta)})", "id": meta["id"],
             "blocking_issues": meta["blocking_issues"]}
 
 
@@ -537,10 +556,13 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--as-of")
     sp.set_defaults(fn=cmd_cockpit)
 
-    sp = sub.add_parser("drafts", help="re-engagement drafts: make, review, approve, reject, mark sent")
+    sp = sub.add_parser("drafts", help="first-response and re-engagement drafts: make, review, approve, reject, "
+                                       "mark sent")
     dsub = sp.add_subparsers(dest="action", required=True)
-    d = with_client(dsub.add_parser("make", help="draft messages for leads that went cold on our side (Level 1)"))
-    d.add_argument("--max", type=int, default=10, help="most drafts to make this run")
+    d = with_client(dsub.add_parser("make", help="draft first replies to new inquiries and follow-ups for leads "
+                                                 "that went cold on our side (Level 1)"))
+    d.add_argument("--agent", choices=["all", *DRAFTERS], default="all")
+    d.add_argument("--max", type=int, default=10, help="most drafts per agent this run")
     d.add_argument("--at")
     d = with_client(dsub.add_parser("list", help="pending and approved drafts"))
     d.add_argument("--all", action="store_true", help="include rejected and sent")

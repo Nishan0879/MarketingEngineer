@@ -9,5 +9,8 @@
 # approved_by = "Client owner"
 # approved_on = "2026-10-20"
 # expires_on = "2027-01-31"     # optional
+# topics = ["booking"]          # optional; questions this fact answers in a first
+#                               # response (topic names from [first_response.topics]
+#                               # in engines/conversion/playbook.toml)
 
 [facts]

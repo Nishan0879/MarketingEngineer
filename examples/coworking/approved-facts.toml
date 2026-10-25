@@ -3,23 +3,27 @@
 
 [facts.tour_booking]
 text = "You can book a tour any weekday, and it takes about 20 minutes."
+topics = ["booking"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"
 
 [facts.month_to_month]
 text = "Memberships are month to month, with no long-term contract."
+topics = ["contract"]
 segments = ["members"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"
 
 [facts.day_pass]
 text = "You're welcome to try a day pass before deciding."
+topics = ["trial"]
 segments = ["members"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"
 
 [facts.office_parking]
 text = "Office tenants can reserve parking spaces in the garage next door."
+topics = ["parking"]
 segments = ["offices"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"
@@ -27,6 +31,14 @@ expires_on = "2027-03-31"
 
 [facts.office_flex]
 text = "Private offices are available on 6- or 12-month terms, and teams can move to a larger office as they grow."
+topics = ["contract", "growth"]
 segments = ["offices"]
+approved_by = "Example owner"
+approved_on = "2026-10-20"
+
+[facts.phone_booths]
+text = "There are private phone booths for calls on every floor."
+segments = ["members"]
+topics = ["quiet"]
 approved_by = "Example owner"
 approved_on = "2026-10-20"
