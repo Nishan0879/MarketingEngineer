@@ -18,6 +18,7 @@ from .evidence import refs_md
 from .ledger import Ledger, LeadState, iso, parse_ts
 from .workspace import Workspace
 from ..engines.content import briefs as content
+from ..engines.creative import plans as creative, results as creative_results
 from ..engines.outbound import drafts as outbound
 from ..engines.search import analysis as search_analysis, data as search_data, pages as search_pages
 from ..engines.conversion import cold_audit, first_response, queue, reengage
@@ -220,6 +221,27 @@ def build(ws: Workspace, ledger: Ledger, as_of: datetime) -> dict:
         if due:
             decisions.append(f"Run {len(due)} AI assistant check(s) and record them with `mefw search ai-record` "
                              "(the list is in the latest search report)")
+    for status, ask in (("plan", "Write the variants for {n} creative test plan(s) ({ids}), then "
+                                  "`mefw creative approve <id>`"),
+                        ("approved", "Build the ads and set the budgets for {n} approved creative test(s) ({ids}), "
+                                     "then `mefw creative start <id>`")):
+        ids = [m["id"] for _, m, _ in creative.all_plans(ws) if m["status"] == status]
+        if ids:
+            decisions.append(ask.format(n=len(ids), ids=", ".join(ids)))
+    stale = creative_results.stale_imports(ws, end)
+    if stale:
+        decisions.append(f"Import this week's ad results for {', '.join(stale)}: `mefw creative results-import`")
+    for _, m, _ in creative.all_plans(ws):
+        if m["status"] == "running":
+            r = creative_results.measure(ws, ledger, m, end)
+            for note in r["notes"]:
+                decisions.append(f"{m['id']}: {note}")
+            if r["stop"]:
+                decisions.append(f"{m['id']}: pause variant(s) {', '.join(k.upper() for k in r['stop'])} in the ad "
+                                 "tool; they've spent enough with no qualified inquiry")
+            if r["suggested"].startswith("keep") or r["suggested"] == "kill":
+                decisions.append(f"{m['id']}: suggested **{r['suggested']}** ({r['reason']}). Close it with "
+                                 "`mefw creative close`")
     out_pending = [m["id"] for _, m, _ in outbound.all_drafts(ws) if m["status"] == "pending"]
     if out_pending:
         decisions.append(f"Review {len(out_pending)} outbound draft(s): `mefw outbound list`, then approve or reject")

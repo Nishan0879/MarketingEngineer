@@ -103,6 +103,12 @@ level = 1                     # scores and drafts; a human sends from their own 
 spec = "agents/outbound-drafter.md"
 max_actions_per_day = 15
 
+[agents.creative-tester]
+engine = "creative"
+level = 1                     # plans tests; a human writes, approves, sets budgets and runs the ads
+spec = "agents/creative-tester.md"
+max_actions_per_day = 10
+
 [agents.first-response-drafter]
 engine = "conversion"
 level = 1                     # drafts only; a human approves and sends
@@ -130,6 +136,7 @@ content-brief-writer   = "weekly mon 06:40"
 search-analyst         = "weekly mon 06:50"
 search-page-drafter    = "weekly mon 06:55"
 outbound-drafter       = "weekly mon 06:57"
+creative-tester        = "weekly mon 06:58"
 cold-inquiry-auditor   = "weekly mon 06:00"
 re-engagement-drafter  = "weekly mon 06:15"
 experiment-tracker     = "weekly mon 06:30"

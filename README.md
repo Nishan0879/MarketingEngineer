@@ -16,6 +16,7 @@ cp examples/coworking/approved-facts.toml ../client-demo/profile/
 cp examples/coworking/playbook.toml ../client-demo/engines/conversion/
 cp examples/coworking/search-playbook.toml ../client-demo/engines/search/playbook.toml
 cp examples/coworking/outbound-playbook.toml ../client-demo/engines/outbound/playbook.toml
+cp examples/coworking/creative-playbook.toml ../client-demo/engines/creative/playbook.toml
 python -m mefw import-csv --client ../client-demo examples/sample_leads.csv --activities examples/sample_activities.csv
 python -m mefw import-signals --client ../client-demo examples/sample_signals.csv
 python -m mefw audit-cold --client ../client-demo --as-of 2026-10-25T12:00
@@ -31,11 +32,12 @@ python -m mefw search analyze --client ../client-demo --at 2026-10-25T12:00
 python -m mefw search drafts --client ../client-demo --at 2026-10-25T12:00
 python -m mefw outbound import --client ../client-demo examples/sample_outbound_triggers.csv
 python -m mefw outbound drafts --client ../client-demo --at 2026-10-25T12:00
+python -m mefw creative plan --client ../client-demo --at 2026-10-25T12:00   # plans once you confirm an insight
 python -m mefw cockpit --client ../client-demo --as-of 2026-10-25T12:00
 python -m mefw status --client ../client-demo
 ```
 
-What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md), [a content brief](examples/sample-content-brief.md), [a search report](examples/sample-search-report.md), [a search draft](examples/sample-search-draft.md), [an outbound report](examples/sample-outbound-report.md), [an outbound draft](examples/sample-outbound-draft.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
+What comes out: [a cold-inquiry audit](examples/sample-audit.md), [the customer truth file](examples/sample-customer-truth.md), [an insight record](examples/sample-insight-record.md), [an experiment brief](examples/sample-experiment-brief.md), [a monthly client report](examples/sample-client-report.md), [a first-response draft](examples/sample-first-response.md), [a re-engagement draft](examples/sample-draft.md), [a content brief](examples/sample-content-brief.md), [a search report](examples/sample-search-report.md), [a search draft](examples/sample-search-draft.md), [an outbound report](examples/sample-outbound-report.md), [an outbound draft](examples/sample-outbound-draft.md), [a creative test plan](examples/sample-creative-plan.md), [creative test results](examples/sample-creative-results.md) and [a weekly cockpit memo](examples/sample-cockpit.md).
 
 For a real client, edit `profile/mefw.toml` in their workspace: segments, stage names, themes in their customers' words, and the column names of their exports. [examples/coworking/mefw.toml](examples/coworking/mefw.toml) is a filled-in example for a coworking space that also leases offices.
 
@@ -167,6 +169,36 @@ The outbound signal engine (Section 9.2) reaches companies with a real reason to
 
 `opted_out`, or `mefw outbound suppress "Company" --reason "..."`, stops all contact at once. Open drafts are withdrawn, and marking anything else sent to that company is refused. The cockpit asks you to review drafts, send approved ones and record what came back.
 
+## Creative testing (creative engine, Level 1)
+
+The creative testing engine (Section 9.4) finds the angles and hooks that bring qualified inquiries and meetings at the lowest cost. It's set up in `engines/creative/playbook.toml`: the channel, the angles, the client's budget cap per test, the planned daily budget and length, and the stop rules ([example](examples/coworking/creative-playbook.toml)).
+
+1. **Plan.** `mefw creative plan` (agent `creative-tester`) writes a test plan for each insight that has shown it resonates. That's the same bar as the content engine: confirmed or acted on, with at least `[content] min_evidence` signals. Each insight gets one test at a time. The plan ([sample](examples/sample-creative-plan.md)) has:
+   - the hypothesis
+   - the audience
+   - customers' words
+   - the facts that may be claimed
+   - what won before for that audience
+   - the budget plan and the stop rules
+   - one section per variant, each with an angle and its own tag
+2. **Approve.** Write at least two variants (headline, main text, visual, landing page), then run `mefw creative approve <id>`. It blocks:
+   - claims that aren't approved facts
+   - banned language and sensitive-data requests
+   - missing required text
+   - misleading imagery or urgency: before-and-after shots, actors posing as customers, fake countdowns or scarcity
+   - invented results
+   - quotations, unless you pass `--quote-permission`
+   - a budget plan over `max_test_budget`
+3. **Run.** You build the ads, put each variant's tag in the ad name and in `utm_campaign`, and set the budgets in the ad tool yourself. Nothing here spends or moves money; budget changes are Level 3 only, within caps. Then run `mefw creative start <id>`.
+4. **Measure.** Import the ad platform's export to date with `mefw creative results-import <id> ads.csv`. The weekly run writes `engines/creative/results.md` ([sample](examples/sample-creative-results.md)). It combines spend with the tagged inquiries in the ledger to show cost per qualified inquiry, meeting and commitment for each variant. Click rate is only an early hint. It suggests:
+   - **too early**, until every variant has `min_qualified` qualified inquiries
+   - **keep** the variant with the lowest cost per meeting
+   - **stop** a variant that has spent enough with no qualified inquiry
+   - **pause** if spend goes over the approved budget
+5. **Learn.** `mefw creative close <id> --winner a --lesson "..."` records the call. The winner goes into `engines/creative/winners.md`, and the next plan for that audience shows it.
+
+The cockpit asks you to write plans, start approved tests, import results weekly, pause variants and close tests that have a winner.
+
 ## Running on a schedule
 
 Each job's schedule lives in the `[schedule]` table of `profile/mefw.toml`, in the client's timezone: `"every 2h"`, `"every 30m"`, `"hourly"`, `"daily 07:00"`, `"weekly mon 07:00"` or `"monthly 1 08:00"`. Leave a job out to run it only by hand.
@@ -261,6 +293,7 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `content briefs \| list \| approve \| published \| results` | Content briefs from confirmed insights; approving and recording what's published are the operator's |
 | `search import \| analyze \| drafts \| list \| approve \| published \| ai-record` | Search visibility: search data, weekly report, FAQ drafts, AI assistant checks; approving, publishing and AI checks are the operator's |
 | `outbound import \| drafts \| list \| approve \| reject \| sent \| outcome \| suppress` | Outbound signals: trigger import, scoring and drafts; approving, sending, outcomes and suppression are the operator's |
+| `creative plan \| list \| approve \| start \| results-import \| results \| close` | Creative tests: plans and results by cost per meeting; approving, starting, importing and closing are the operator's, and budgets stay in the ad tool |
 | `report make \| approve` | Draft the monthly client report; approve it to get the shareable HTML |
 | `quality` | Per-agent quality numbers; enforces the error budget |
 | `promote <agent>` / `demote <agent>` | Change an agent's level with your sign-off, or after a serious error |
@@ -279,6 +312,7 @@ mefw/core/          runner, kill switch, activity log, ledger, PII guard, worksp
 mefw/adapters/      lead-source interface, lead CSV adapter, signals CSV adapter
 mefw/engines/conversion/   cold-inquiry audit, first-response and re-engagement drafts, the draft queue
 mefw/engines/content/      content briefs, asset checks, publish log, results
+mefw/engines/creative/     test plans, variant checks, ad results, cost per meeting, winners
 mefw/engines/outbound/     trigger import, scoring, suppression, trigger-tied drafts, what came back
 mefw/engines/search/       search snapshots, opportunity ranking, listings, AI checks, FAQ drafts
 mefw/templates/client/   what `init` copies into a new client workspace

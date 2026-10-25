@@ -93,12 +93,17 @@ def find(ws: Workspace, brief_id: str) -> tuple[Path, dict, str]:
     raise KeyError(f"No brief {brief_id}")
 
 
-def candidates(ws: Workspace, as_of: datetime, ledger: Ledger | None = None) -> tuple[list[dict], list[str]]:
-    """Confirmed insights with enough evidence and no recent brief; plus why others were passed over."""
+def candidates(ws: Workspace, as_of: datetime, ledger: Ledger | None = None,
+               recent: set[str] | None = None) -> tuple[list[dict], list[str]]:
+    """Confirmed insights with enough evidence and no recent brief; plus why others were passed over.
+
+    `recent` is the insights to skip; by default, those with a content brief in the last refresh_days.
+    """
     cfg = settings(ws)
     said = {s["ref"]: s["text"] for s in ledger.signals(as_of)} if ledger else {}
-    recent = {m["insight"] for _, m, _ in all_briefs(ws)
-              if parse_ts(m["created"]) > as_of - timedelta(days=int(cfg["refresh_days"]))}
+    if recent is None:
+        recent = {m["insight"] for _, m, _ in all_briefs(ws)
+                  if parse_ts(m["created"]) > as_of - timedelta(days=int(cfg["refresh_days"]))}
     out, passed = [], []
     d = ws.path("customer-truth/insights")
     for path in sorted(d.glob("*.md")) if d.exists() else []:

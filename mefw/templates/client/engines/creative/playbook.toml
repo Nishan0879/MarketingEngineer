@@ -1,0 +1,30 @@
+# Creative testing playbook, written and owned by the operator (Section 9.4).
+# The agent plans tests and checks creative; it never sets or changes a budget.
+
+[creative]
+channel = "your ad platform"   # e.g. "Meta ads", "Google ads"
+currency = "$"
+max_test_budget = 0            # the client's cap for one test, total; approval refuses a plan until it's set
+daily_per_variant = 10         # planned daily budget per variant
+days = 14                      # planned test length
+variants = 3                   # 2 to 5, taken from the angles below in order
+min_qualified = 5              # qualified inquiries every variant needs before a winner is called
+kill_spend = 0                 # stop a variant with no qualified inquiry after this spend; 0 = 3x the leader's cost per qualified
+qualified_stage = "qualify"    # the funnel stage that counts as a qualified inquiry
+refresh_days = 60              # at most one test per insight in this window
+must_include = []              # text every ad must carry (disclaimers, platform rules)
+tag_prefix = "mefw-cr"
+
+# One angle per variant, in this order. Each is guidance for the writer.
+[creative.angles]
+problem   = "Say the problem the way customers say it, then show it solved, using approved facts only."
+objection = "Take the most common worry head on and answer it with an approved fact."
+proof     = "Lead with the approved fact that matters most to this audience. Show the real place."
+# offer   = "Lead with an approved offer. Only offers in approved facts."
+
+# Column names in the ad platform export, if they differ from these defaults.
+# [creative.columns]
+# ad = "Ad name"
+# spend = "Amount spent"
+# impressions = "Impressions"
+# clicks = "Link clicks"
