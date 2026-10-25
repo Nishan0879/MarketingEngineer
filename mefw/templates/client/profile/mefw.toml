@@ -19,6 +19,26 @@ meet    = ["Tour Booked", "Tour Completed", "Consult", "Demo", "Meeting"]
 commit  = ["Signed", "Won", "Closed Won"]
 retain  = ["Renewed"]
 
+# Optional: segments with their own funnel (Section 7), e.g. members vs. office
+# tenants. A lead joins the segment whose `match` list contains its segment
+# value from the lead-tracking tool. Each segment can set its own cycle length,
+# extra stage names and audit thresholds. Without segments, all leads are one group.
+#
+# [segments.members]
+# label = "Members (B2C)"
+# match = ["Freelancer", "Remote employee", "Day pass"]
+# cycle_days = 21
+#
+# [segments.offices]
+# label = "Office leases (B2B)"
+# match = ["Small team", "Company", "Office lease"]
+# cycle_days = 90
+# [segments.offices.stages]
+# meet = ["Site Visit", "Proposal Sent", "Negotiation"]
+# [segments.offices.cold_audit]
+# cold_after_days = 30
+# min_followups = 5
+
 # Agents allowed to run for this client. An agent with no spec file does not run.
 [agents.cold-inquiry-auditor]
 engine = "conversion"
@@ -26,6 +46,13 @@ level = 0                     # 0 observe, 1 draft, 2 act within a playbook, 3 a
 spec = "agents/cold-inquiry-auditor.md"
 max_actions_per_day = 5
 max_consecutive_errors = 2    # after this many failures in a row the agent is paused
+
+[agents.customer-truth-analyst]
+engine = "core"
+level = 0
+spec = "agents/customer-truth-analyst.md"
+max_actions_per_day = 5
+max_consecutive_errors = 2
 
 [conversion.cold_audit]
 lookback_days = 180
@@ -35,6 +62,56 @@ min_followups = 3             # fewer outbound touches than this = gave up early
 min_group_size = 10           # below this, comparisons say "not enough evidence"
 response_buckets_minutes = [5, 60, 1440]
 max_candidates = 25
+
+# Customer truth (Section 8.2). Themes are what buyers talk about, found by
+# keyword for now. Replace these generic ones with the client's own language.
+[customer_truth]
+period_days = 30          # "this period"
+baseline_periods = 3      # compared against the average of this many periods before
+min_mentions = 3          # fewer mentions than this is not a pattern
+rising_factor = 1.5       # this period vs. baseline average to count as rising
+min_group_size = 5        # won vs. lost comparison needs this many leads per side
+quote_max_chars = 160
+
+[customer_truth.themes.price]
+label = "Price and budget"
+keywords = ["price", "pricing", "expensive", "cost", "budget", "afford", "cheaper", "too much"]
+
+[customer_truth.themes.timing]
+label = "Timing"
+keywords = ["not ready", "timing", "next quarter", "later this year", "too soon", "on hold"]
+
+[customer_truth.themes.competitor]
+label = "Chose or compared an alternative"
+keywords = ["competitor", "went with", "chose another", "other option", "elsewhere", "compared"]
+
+[customer_truth.themes.responsiveness]
+label = "Speed and responsiveness"
+keywords = ["no reply", "never heard back", "slow to respond", "quick response", "fast response", "followed up"]
+
+[customer_truth.themes.flexibility]
+label = "Flexible terms"
+keywords = ["flexible", "month-to-month", "month to month", "short term", "no long-term", "lease length", "commitment"]
+
+# CSV export of notes, messages or reviews. Map the columns your export has;
+# `text` is scrubbed of emails and phone numbers on import.
+[adapters.signals_csv]
+source = "notes"
+
+[adapters.signals_csv.columns]
+kind     = "Type"
+ref      = "Note ID"
+at       = "Date"
+text     = "Text"
+lead_ref = "Lead ID"
+segment  = "Segment"
+
+[adapters.signals_csv.kind_values]
+call_note       = ["call", "call note", "phone call"]
+tour_note       = ["tour", "tour note", "site visit"]
+inquiry_message = ["inquiry", "form", "message", "dm", "email"]
+lost_note       = ["lost", "lost note"]
+review          = ["review", "google review"]
 
 # CSV export from the client's lead-tracking tool. Map only the columns listed
 # below. Never map names, emails, phone numbers or other personal data: the
