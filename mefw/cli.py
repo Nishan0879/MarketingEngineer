@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import sys
 from datetime import date, datetime, timezone
 from importlib import resources
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
+from . import skills
 from .adapters import onboarding
 from .adapters.base import import_records
 from .adapters.csv_source import CsvSource
@@ -50,8 +53,10 @@ def cmd_init(args) -> int:
     ws = Workspace(dest)
     ActivityLog(ws.log_path, ws.client_id).append(
         OPERATOR, "init", "ok", {"client_id": args.client_id}, {"summary": "Workspace created"})
+    skills.install(dest / ".claude" / "skills")
     print(f"Created client workspace for '{args.client_id}' at {dest}")
     print("Next: edit profile/mefw.toml (stage names, CSV columns), then `mefw import-csv`.")
+    print("Open Claude Code in it and type /mefw-today to see what needs you.")
     return 0
 
 
@@ -964,6 +969,65 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_today(args) -> int:
+    """What needs the operator right now. No agent runs and nothing goes in the activity log."""
+    ws = _ws(args)
+    at = parse_ts(args.at) if args.at else datetime.now(timezone.utc)
+    ctl = Control(ws.control_path).load()
+    try:
+        log_ok, log_state = True, f"OK ({ActivityLog(ws.log_path, ws.client_id).verify()} entries)"
+    except GuardrailError as e:
+        log_ok, log_state = False, f"BROKEN: {e}. Every agent is stopped until it's fixed."
+    ledger = Ledger(ws.db_path, ws.client_id)
+    try:
+        data = cockpit.build(ws, ledger, at)
+        counts = ledger.counts()
+    finally:
+        ledger.close()
+    paused = ([f"whole client ({ctl['client'].get('reason')})"] if ctl.get("client") else []) + \
+        [f"{name} ({flag.get('reason')})" for name, flag in {**ctl["engines"], **ctl["agents"]}.items()]
+    try:
+        local = at.astimezone(ZoneInfo(ws.config.timezone))
+    except (KeyError, ValueError):
+        local = at
+    out = {"client": ws.client_id, "name": ws.config.client_name, "at": iso(at),
+           "local_time": local.strftime("%a %d %b %Y %H:%M ") + str(local.tzinfo),
+           "activity_log_ok": log_ok, "activity_log": log_state, "paused": paused,
+           "leads": counts["leads"], "north_star": data["north_star"], "decisions": data["decisions"]}
+    if args.json:
+        print(json.dumps(out, indent=2, default=str))
+        return 0
+    ns = data["north_star"]
+    print(f"{ws.config.client_name or ws.client_id} ({ws.client_id}), {out['local_time']}")
+    print(f"Activity log: {log_state}")
+    print(f"Paused: {', '.join(paused) if paused else 'nothing'}")
+    print(f"{ns['label']}: {ns['this_week']:g} this week, {ns['last_week']:g} last week. "
+          f"{counts['leads']} leads in the ledger.")
+    print()
+    if not data["decisions"]:
+        print("Nothing needs you right now.")
+        return 0
+    print(f"What needs you ({len(data['decisions'])}):")
+    for i, d in enumerate(data["decisions"], 1):
+        print(f"{i}. {d}")
+    return 0
+
+
+def cmd_skills(args) -> int:
+    if args.action == "list":
+        for name, text in skills.shipped().items():
+            print(f"/{name}  {skills.description(text)}")
+        return 0
+    if args.user:
+        dest = Path.home() / ".claude" / "skills"
+    else:
+        dest = _ws(args).root / ".claude" / "skills"
+    for name, state in skills.install(dest):
+        print(f"{state:9}  /{name}")
+    print(f"Installed in {dest}. Start a new Claude Code session there to use them.")
+    return 0
+
+
 def cmd_log(args) -> int:
     ws = _ws(args)
     log = ActivityLog(ws.log_path, ws.client_id)
@@ -1280,6 +1344,18 @@ def main(argv: list[str] | None = None) -> int:
 
     sp = with_client(sub.add_parser("status", help="kill switch, agents, ledger and log health"))
     sp.set_defaults(fn=cmd_status)
+
+    sp = with_client(sub.add_parser("today", help="what needs you right now (reads only)"))
+    sp.add_argument("--json", action="store_true")
+    sp.add_argument("--at", help="pretend it is this time (for testing)")
+    sp.set_defaults(fn=cmd_today)
+
+    sp = sub.add_parser("skills", help="Claude Code slash commands for the operator (/mefw-today and others)")
+    ksub = sp.add_subparsers(dest="action", required=True)
+    ksub.add_parser("list", help="the skills that ship with mefw")
+    k = with_client(ksub.add_parser("install", help="install or update them in the client workspace"))
+    k.add_argument("--user", action="store_true", help="install in ~/.claude/skills instead, for every folder")
+    sp.set_defaults(fn=cmd_skills)
 
     sp = with_client(sub.add_parser("log", help="verify or render the activity log"))
     sp.add_argument("action", choices=["verify", "render"])

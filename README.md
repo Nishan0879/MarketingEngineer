@@ -2,7 +2,7 @@
 
 A reusable system for running marketing for lead-based businesses with AI agents, overseen by one operator. The operating manual is [MarketingEngineerFW.md](MarketingEngineerFW.md); this repository is the code that enforces it.
 
-**Built so far (v0.13):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, a scheduler, a monthly client report, per-agent quality numbers with promotion and demotion checked in code, and all five engines: conversion (cold-inquiry audit, first replies, re-engagement), content, search visibility, outbound signals and creative testing. Onboarding presets map exports from a lead sheet, HubSpot, Pipedrive, Nexudus or OfficeRnD. Client-agnostic: a new client is a new workspace plus a config file.
+**Built so far (v0.14):** the core guardrails, a lead/outcome ledger with opt-outs, approved facts, segments with their own funnels, customer truth, experiment briefs with locked decision rules, the weekly growth cockpit, a scheduler, a monthly client report, per-agent quality numbers with promotion and demotion checked in code, and all five engines: conversion (cold-inquiry audit, first replies, re-engagement), content, search visibility, outbound signals and creative testing. Onboarding presets map exports from a lead sheet, HubSpot, Pipedrive, Nexudus or OfficeRnD. Client-agnostic: a new client is a new workspace plus a config file. Day to day you can run it from Claude Code with slash commands such as `/mefw-today`.
 
 ## Quick start
 
@@ -49,6 +49,25 @@ For a real client, follow [docs/first-client.md](docs/first-client.md): agree on
 - `mefw onboard apply FILE --preset P [--stage "NAME=STAGE"]` writes the column mapping, stage-date columns and won/lost values into `profile/mefw.toml`, and adds the preset's stage names to `[funnel.stages]` without touching yours. It keeps the old profile as `profile/mefw.toml.<time>.bak` and puts it back if the new mapping can't read every row.
 
 A client with no lead tool can start from [examples/onboarding/lead-sheet-template.csv](examples/onboarding/lead-sheet-template.csv), which the spreadsheet preset reads in full. A lost value in the stage column (HubSpot's "Closed Lost") is read as an outcome, not an unmapped stage.
+
+## Slash commands in Claude Code
+
+Six Claude Code skills run the daily work for you, so you don't need to remember the commands. Open Claude Code in the client workspace and type:
+
+| Command | Does |
+|---|---|
+| `/mefw-today` | What needs you now: leads waiting on a reply, drafts to review or send, listings to fix, paused agents, tests to call. Reads only |
+| `/mefw-review` | Goes through pending drafts one at a time, first replies first. You approve, edit or reject each one; nothing is approved without your word |
+| `/mefw-lead` | Log a new inquiry, a reply or a won/lost result in plain words. It shows the lead sheet row first, never writes names or contact details, then imports |
+| `/mefw-run` | Runs the scheduled jobs that are due and says what changed. Useful when no cron runs on this machine |
+| `/mefw-report` | Builds the weekly cockpit memo or the monthly client report, summarizes it, and approves the report when you say it's ready |
+| `/mefw-pause` | The kill switch: pause or resume the client, an engine or an agent |
+
+`mefw init` puts them in `.claude/skills/` of every new workspace. For an existing one, or after updating MarketingEngineer, run `mefw skills install --client DIR`. It only touches folders named `mefw-*`. Use `--user` to install them in `~/.claude/skills/` so they work from any folder. `mefw skills list` shows what ships.
+
+The skills find the workspace from `$MEFW_CLIENT`, the current folder, or a folder next to it with `profile/mefw.toml`. They find this code with `import mefw`, `$MEFW_HOME`, or a sibling checkout. `/mefw-lead` writes to the file named by `lead_sheet` under `[operator]` in `profile/mefw.toml`, or else the inbox leads file. Like the rest of the system, the skills never send, publish or spend.
+
+`mefw today` is the command behind `/mefw-today`. It prints the same "decisions needed" list as the weekly cockpit for this moment, plus the log and pause state, without running an agent or writing to the activity log. Add `--json` for a machine-readable copy.
 
 ## Segments
 
@@ -310,6 +329,8 @@ Memos are never overwritten. A rerun in the same week gets a suffix.
 | `run-due` | Run every scheduled job that's due (call it from cron) |
 | `schedule` | Each scheduled job's last and next run |
 | `status` | Pause state, agents, ledger and log health |
+| `today [--json]` | What needs you now (reads only) |
+| `skills list \| install [--user]` | The Claude Code slash commands; install or update them in a workspace or for your user |
 | `log verify \| render` | Check the hash chain, or write `logs/agent-activity.md` |
 
 All take `--client DIR` (or `$MEFW_CLIENT`).
@@ -327,6 +348,7 @@ mefw/engines/creative/     test plans, variant checks, ad results, cost per meet
 mefw/engines/outbound/     trigger import, scoring, suppression, trigger-tied drafts, what came back
 mefw/engines/search/       search snapshots, opportunity ranking, listings, AI checks, FAQ drafts
 mefw/templates/client/   what `init` copies into a new client workspace
+mefw/claude_skills/      the /mefw-* Claude Code skills that `init` and `skills install` put in .claude/skills
 templates/          the spec's templates (agent spec, experiment brief, ...)
 examples/           sample data generator, coworking profile, lead sheet template, sample outputs
 docs/               first-client.md: running a first real client end to end

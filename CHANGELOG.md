@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0 — 2026-10-26
+- Claude Code slash commands for the operator, in `mefw/claude_skills/`: `/mefw-today`, `/mefw-review`, `/mefw-lead`, `/mefw-run`, `/mefw-report` and `/mefw-pause`. They run the CLI for you and keep its rules: nothing is approved, sent or marked sent without the operator's word, and no names or contact details go in the lead sheet. The idea of a slash-command layer comes from [ai-marketing-claude](https://github.com/zubair-trabzada/ai-marketing-claude) (MIT); no text was copied.
+- `mefw init` installs them in the new workspace's `.claude/skills/`. `mefw skills install` installs or updates them in an existing workspace, or in `~/.claude/skills/` with `--user`, and only touches `mefw-*` folders. `mefw skills list` shows them.
+- `mefw today` prints what needs the operator now: the cockpit's decisions list for this moment, the activity log's health and what's paused. It runs no agent and writes nothing to the activity log. `--json` for scripts.
+- Optional `[operator] lead_sheet` in `profile/mefw.toml` names the lead sheet `/mefw-lead` edits.
+
 ## 0.13.0 — 2026-10-25
 - Client onboarding. `mefw onboard` maps a real lead export with a preset for the client's lead tool.
 - Presets in `mefw/adapters/presets/` for a Google Sheets or Excel lead sheet, HubSpot deals, Pipedrive deals, Nexudus opportunities and OfficeRnD leads. Each lists the header names each field usually goes by, the tool's default stage names and its won/lost values. Matching ignores case, spaces and punctuation, and no alias may name a personal-data column.
