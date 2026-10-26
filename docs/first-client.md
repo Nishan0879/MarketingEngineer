@@ -26,6 +26,8 @@ export MEFW_CLIENT=../client-acme
 
 Put it in its own private git repository (Section 17.2). [examples/coworking/](../examples/coworking/) has a filled-in profile and playbooks for a coworking space that also leases offices; copy what fits.
 
+The workspace comes with Claude Code slash commands in `.claude/skills/`. Open Claude Code there and `/mefw-today` tells you what needs you, `/mefw-lead` logs leads from plain words, and `/mefw-review` takes you through drafts. Each one shows you the change before it makes it.
+
 **2. Write the profile.** Fill in `profile/business-profile.md`, `voice.md` and `compliance.md`. In `profile/mefw.toml` set the client's name, timezone, north star, `cycle_days` and segments (`[segments.*]`, with the segment values from their tool under `match`).
 
 **3. Approve the facts.** Add each fact the client signs off to `profile/approved-facts.toml`: prices, terms, opening hours, what's included, how to book a tour. Each needs `approved_by` and `approved_on`, and `topics` so first replies can answer questions about it. Agents may claim nothing else. Start with five to ten; a draft that needs a missing fact says so instead of guessing.
@@ -102,6 +104,7 @@ Reject a bad draft with `--reason`; the reason becomes a correction the next dra
 
 ## After the first month
 
+- Start each day with `/mefw-today` in Claude Code, or `mefw today` in a terminal.
 - `mefw quality` shows each agent's numbers. `mefw promote <agent> --check` shows what's left before Level 2; promotion always needs your sign-off.
 - `mefw pause` stops everything at once; `mefw resume` starts it again.
 - `mefw log verify` proves the activity log hasn't been edited.
